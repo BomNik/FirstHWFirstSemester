@@ -13,7 +13,7 @@ class SimpleDataService implements DataService {
 
   @Override
   public Optional<String> findDataByKey(String key) {
-    return Optional.of(storage.get(key));
+    return Optional.ofNullable(storage.get(key));
   }
 
   @Override
