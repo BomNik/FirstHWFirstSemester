@@ -3,6 +3,14 @@ package com.mipt.nikitabumagin.service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+/**
+ * Service that exposes general application metadata such as name and version.
+ *
+ * <p>Property values are injected from the application configuration
+ * ({@code app.name}, {@code app.version}) using Spring's
+ * {@link org.springframework.beans.factory.annotation.Value @Value} mechanism, demonstrating
+ * externalized configuration.</p>
+ */
 @Service
 public class AppInfoService {
 
@@ -14,14 +22,6 @@ public class AppInfoService {
             @Value("${app.version}") String appVersion) {
         this.appName = appName;
         this.appVersion = appVersion;
-    }
-
-    /**
-     * Example of using injected properties: we just expose them as a formatted string.
-     * No side effects / business actions.
-     */
-    public String describe() {
-        return appName + " v" + appVersion;
     }
 
     public String getAppName() {

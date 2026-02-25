@@ -3,6 +3,17 @@ package com.mipt.nikitabumagin.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+/**
+ * Data Transfer Object used for creating and updating tasks.
+ *
+ * <p>Carries the client-supplied task fields and enforces basic validation
+ * constraints via Jakarta Bean Validation annotations:
+ * <ul>
+ *   <li>{@code title} — mandatory, max 100 characters</li>
+ *   <li>{@code description} — optional, max 500 characters</li>
+ *   <li>{@code completed} — defaults to {@code false}</li>
+ * </ul>
+ */
 public class TaskDto {
 
     @NotBlank(message = "Название задачи не может быть пустым")

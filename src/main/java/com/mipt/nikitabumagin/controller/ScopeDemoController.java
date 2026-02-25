@@ -9,6 +9,22 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST controller that demonstrates Spring bean scopes.
+ *
+ * <p>Exposes endpoints to illustrate the behavioral difference between
+ * <em>request-scoped</em> and <em>prototype-scoped</em> beans:
+ * <ul>
+ *   <li>{@code GET /api/scope/request} — shows that the same bean instance
+ *       is reused within a single HTTP request.</li>
+ *   <li>{@code GET /api/scope/prototype} — shows that every retrieval from
+ *       the {@link org.springframework.beans.factory.ObjectProvider} yields
+ *       a new bean instance.</li>
+ * </ul>
+ *
+ * @see com.mipt.nikitabumagin.scope.RequestScopedBean
+ * @see com.mipt.nikitabumagin.scope.PrototypeScopedBean
+ */
 @RestController
 @RequestMapping("/api/scope")
 public class ScopeDemoController {
@@ -23,8 +39,8 @@ public class ScopeDemoController {
     }
 
     /**
-     * Demonstrates request scope: within a single HTTP request the bean instance is the same,
-     * but across different HTTP requests Spring creates a new instance.
+     * Demonstrates request scope: within a single HTTP request the bean instance is the same, but
+     * across different HTTP requests Spring creates a new instance.
      */
     @GetMapping("/request")
     public Map<String, Object> requestScope() {

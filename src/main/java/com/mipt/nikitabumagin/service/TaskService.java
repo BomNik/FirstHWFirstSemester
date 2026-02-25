@@ -20,6 +20,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+/**
+ * Core service encapsulating business logic for task management.
+ *
+ * <p>Delegates persistence to a {@link com.mipt.nikitabumagin.repository.TaskRepository}
+ * and maintains an in-memory cache ({@link java.util.LinkedHashMap}) for fast
+ * lookups by task identifier.</p>
+ *
+ * <p>Lifecycle hooks:
+ * <ul>
+ *   <li>{@link jakarta.annotation.PostConstruct @PostConstruct} — pre-populates the
+ *       repository with sample data and warms the cache.</li>
+ *   <li>{@link jakarta.annotation.PreDestroy @PreDestroy} — logs cache statistics
+ *       and optionally persists them to a file before shutdown.</li>
+ * </ul>
+ *
+ * @see com.mipt.nikitabumagin.repository.TaskRepository
+ */
 @Service
 public class TaskService {
 

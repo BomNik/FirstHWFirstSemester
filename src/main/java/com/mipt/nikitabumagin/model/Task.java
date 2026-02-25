@@ -2,6 +2,13 @@ package com.mipt.nikitabumagin.model;
 
 import java.util.Objects;
 
+/**
+ * Domain model representing a single task in the task management system.
+ *
+ * <p>Each task has a unique {@code id}, a {@code title}, an optional
+ * {@code description}, and a {@code completed} flag indicating whether the task has been
+ * finished.</p>
+ */
 public class Task {
 
     private Long id;

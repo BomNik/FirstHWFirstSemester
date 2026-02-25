@@ -18,6 +18,21 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * REST controller that exposes CRUD endpoints for task management.
+ *
+ * <p>All request/response bodies are validated using Jakarta Bean Validation.
+ * Endpoints:
+ * <ul>
+ *   <li>{@code POST   /api/tasks}       — create a new task</li>
+ *   <li>{@code GET    /api/tasks/{id}}   — retrieve a task by its identifier</li>
+ *   <li>{@code GET    /api/tasks}        — list all tasks</li>
+ *   <li>{@code PUT    /api/tasks/{id}}   — update an existing task</li>
+ *   <li>{@code DELETE /api/tasks/{id}}   — delete a task</li>
+ * </ul>
+ *
+ * @see com.mipt.nikitabumagin.service.TaskService
+ */
 @RestController
 @RequestMapping("/api/tasks")
 @Validated
@@ -36,24 +51,26 @@ public class TaskController {
                 request.isCompleted());
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .header("Location", "/tasks/" + created.getId())
+                .header("Location", "/api/tasks/" + created.getId())
                 .body(created);
     }
 
     @GetMapping("/{id}")
-    public Task getTask(@PathVariable @Min(1) Long id) {
-        return taskService.getTaskById(id);
+    public ResponseEntity<Task> getTask(@PathVariable @Min(1) Long id) {
+        return ResponseEntity.ok(taskService.getTaskById(id));
     }
 
     @GetMapping
-    public List<Task> getAllTasks() {
-        return taskService.getAllTasks();
+    public ResponseEntity<List<Task>> getAllTasks() {
+        return ResponseEntity.ok(taskService.getAllTasks());
     }
 
     @PutMapping("/{id}")
-    public Task updateTask(@PathVariable @Min(1) Long id, @RequestBody @Valid TaskDto update) {
-        return taskService.updateTask(id, update.getTitle(), update.getDescription(),
-                update.isCompleted());
+    public ResponseEntity<Task> updateTask(@PathVariable @Min(1) Long id,
+            @RequestBody @Valid TaskDto update) {
+        return ResponseEntity.ok(
+                taskService.updateTask(id, update.getTitle(), update.getDescription(),
+                        update.isCompleted()));
     }
 
     @DeleteMapping("/{id}")

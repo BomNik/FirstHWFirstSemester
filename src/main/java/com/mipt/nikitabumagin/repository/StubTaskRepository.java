@@ -8,6 +8,16 @@ import java.util.Objects;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Qualifier;
 
+/**
+ * Read-only stub implementation of {@link TaskRepository} preloaded with sample data.
+ *
+ * <p>Intended for demonstration and testing purposes. Any mutating operations
+ * ({@code create}, {@code update}, {@code deleteById}) throw
+ * {@link UnsupportedOperationException}.</p>
+ *
+ * <p>Registered with the qualifier {@code "stubTaskRepository"} so it can
+ * be explicitly injected alongside the primary repository.</p>
+ */
 @Qualifier("stubTaskRepository")
 public class StubTaskRepository implements TaskRepository {
 

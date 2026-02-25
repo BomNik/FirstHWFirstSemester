@@ -9,6 +9,17 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
+/**
+ * Custom {@link BeanPostProcessor} that logs lifecycle events for task-related beans.
+ *
+ * <p>Intercepts the Spring container's bean initialization pipeline and emits
+ * log messages <em>before</em> and <em>after</em> initialization for beans of type
+ * {@link com.mipt.nikitabumagin.service.TaskService} and
+ * {@link com.mipt.nikitabumagin.repository.TaskRepository}.</p>
+ *
+ * <p>This is useful for debugging and understanding the order in which
+ * Spring initializes application components.</p>
+ */
 @Component
 public class TaskLifecycleProcessor implements BeanPostProcessor {
 

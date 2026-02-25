@@ -4,6 +4,15 @@ import com.mipt.nikitabumagin.repository.TaskRepository;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
+/**
+ * Service that provides comparative statistics across multiple
+ * {@link com.mipt.nikitabumagin.repository.TaskRepository} implementations.
+ *
+ * <p>Injects both the primary (in-memory) repository and the stub repository
+ * to demonstrate Spring's
+ * {@link org.springframework.beans.factory.annotation.Qualifier @Qualifier}-based disambiguation
+ * when multiple beans of the same type exist in the context.</p>
+ */
 @Service
 public class TaskStatisticsService {
 
