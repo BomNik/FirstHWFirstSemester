@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import org.springframework.beans.factory.annotation.Qualifier;
 
 /**
  * Read-only stub implementation of {@link TaskRepository} preloaded with sample data.
@@ -15,10 +14,11 @@ import org.springframework.beans.factory.annotation.Qualifier;
  * ({@code create}, {@code update}, {@code deleteById}) throw
  * {@link UnsupportedOperationException}.</p>
  *
- * <p>Registered with the qualifier {@code "stubTaskRepository"} so it can
- * be explicitly injected alongside the primary repository.</p>
+ * <p>Registered as a named bean ({@code "stubTaskRepository"}) via
+ * {@link com.mipt.nikitabumagin.config.TaskRepositoryConfig @Configuration} so it can
+ * be explicitly injected alongside the primary repository using
+ * {@code @Qualifier("stubTaskRepository")}.</p>
  */
-@Qualifier("stubTaskRepository")
 public class StubTaskRepository implements TaskRepository {
 
     private final List<Task> tasks;
