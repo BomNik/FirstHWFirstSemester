@@ -1,6 +1,7 @@
 package com.mipt.nikitabumagin.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -20,6 +21,7 @@ public class TaskDto {
     @Size(max = 100, message = "Название задачи не может быть длиннее 100 символов")
     private String title;
 
+    @NotNull(message = "Описание задачи не может быть null, но может быть пустым")
     @Size(max = 500, message = "Описание задачи не может быть длиннее 500 символов")
     private String description;
 
