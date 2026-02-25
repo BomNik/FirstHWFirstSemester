@@ -1,18 +1,31 @@
 package com.mipt.nikitabumagin.dto;
 
-public class CreateTaskRequest {
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
+public class TaskDto {
+
+    @NotBlank(message = "Название задачи не может быть пустым")
+    @Size(max = 100, message = "Название задачи не может быть длиннее 100 символов")
     private String title;
+
+    @Size(max = 500, message = "Описание задачи не может быть длиннее 500 символов")
     private String description;
+
     private boolean completed = false;
 
-    public CreateTaskRequest() {
+    public TaskDto() {
     }
 
-    public CreateTaskRequest(String title, String description, boolean completed) {
+    public TaskDto(String title, String description, boolean completed) {
         this.title = title;
         this.description = description;
         this.completed = completed;
+    }
+
+    public TaskDto(String title, String description) {
+        this.title = title;
+        this.description = description;
     }
 
     public String getTitle() {
