@@ -1,0 +1,19 @@
+# Prod profile: safer defaults for production
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+server:
+  port: 8080
+  shutdown: graceful
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+
+logging:
+  level:
+    root: INFO
+    com.mipt.nikitabumagin: INFO
+    org.springframework: WARN

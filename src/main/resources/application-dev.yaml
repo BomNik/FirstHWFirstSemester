@@ -1,0 +1,15 @@
+# Dev profile: verbose logging + convenient defaults
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+server:
+  port: 8081
+
+logging:
+  level:
+    root: INFO
+    com.mipt.nikitabumagin: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.boot.autoconfigure: INFO

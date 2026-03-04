@@ -1,0 +1,87 @@
+package com.mipt.nikitabumagin.model;
+
+import java.util.Objects;
+
+/**
+ * Domain model representing a single task in the task management system.
+ *
+ * <p>Each task has a unique {@code id}, a {@code title}, an optional
+ * {@code description}, and a {@code completed} flag indicating whether the task has been
+ * finished.</p>
+ */
+public class Task {
+
+    private Long id;
+    private String title;
+    private String description;
+    private Boolean completed;
+
+    public Task(Long id, String title, String description, Boolean completed) {
+        this.id = id;
+        this.title = title;
+        this.description = description;
+        this.completed = completed;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Boolean isCompleted() {
+        return completed;
+    }
+
+    public void setCompleted(Boolean completed) {
+        this.completed = completed;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        Task task = (Task) o;
+        return Objects.equals(id, task.id)
+                && Objects.equals(completed, task.completed)
+                && Objects.equals(title, task.title)
+                && Objects.equals(description, task.description);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, title, description, completed);
+    }
+
+    @Override
+    public String toString() {
+        return "Task{" +
+                "id=" + id +
+                ", title='" + title + '\'' +
+                ", description='" + description + '\'' +
+                ", completed=" + completed +
+                '}';
+    }
+}
