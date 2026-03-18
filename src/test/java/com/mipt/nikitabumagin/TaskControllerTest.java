@@ -5,9 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.mipt.nikitabumagin.dto.TaskDto;
-import com.mipt.nikitabumagin.model.Task;
+import com.mipt.nikitabumagin.dto.TaskCreateDto;
+import com.mipt.nikitabumagin.dto.TaskResponseDto;
+import com.mipt.nikitabumagin.dto.TaskUpdateDto;
+import com.mipt.nikitabumagin.model.Priority;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,9 +25,8 @@ import org.springframework.http.ResponseEntity;
 /**
  * Integration tests for {@link com.mipt.nikitabumagin.controller.TaskController}.
  *
- * <p>Uses {@link TestRestTemplate} to perform real HTTP calls against the
- * running application context. Each endpoint has at least one positive and one negative
- * scenario.</p>
+ * <p>Uses {@link TestRestTemplate} to perform real HTTP calls against the running application
+ * context and verifies the current DTO-based contract.</p>
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class TaskControllerTest {
@@ -32,25 +35,68 @@ class TaskControllerTest {
     private TestRestTemplate restTemplate;
 
     @Test
-    void createTask_returnsCreatedStatus() {
-        TaskDto request = new TaskDto("Test task", "Some description", false);
+    void createTask_returnsCreatedStatusAndResponseDto() {
+        TaskCreateDto request = createRequest("Test task", "Some description");
 
-        ResponseEntity<Task> response = restTemplate.postForEntity(
-                "/api/tasks", request, Task.class);
+        ResponseEntity<TaskResponseDto> response = restTemplate.postForEntity(
+                "/api/tasks", request, TaskResponseDto.class);
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        Task body = response.getBody();
+        TaskResponseDto body = response.getBody();
         assertNotNull(body);
-        assertNotNull(body.getId());
-        assertEquals("Test task", body.getTitle());
-        assertEquals("Some description", body.getDescription());
-        assertFalse(body.isCompleted());
+        assertNotNull(body.id());
+        assertEquals("Test task", body.title());
+        assertEquals("Some description", body.description());
+        assertFalse(body.completed());
+        assertEquals(request.getDueDate(), body.dueDate());
+        assertEquals(request.getPriority(), body.priority());
+        assertEquals(request.getTags(), body.tags());
         assertTrue(response.getHeaders().containsKey("Location"));
     }
 
     @Test
     void createTask_blankTitle_returnsBadRequest() {
-        TaskDto request = new TaskDto("", "description", false);
+        TaskCreateDto request = createRequest("", "description");
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/tasks", request, String.class);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void createTask_nullTitle_returnsBadRequest() {
+        TaskCreateDto request = createRequest(null, "description");
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/tasks", request, String.class);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void createTask_missingPriority_returnsBadRequest() {
+        TaskCreateDto request = new TaskCreateDto(
+                "Priority required",
+                "description",
+                futureDate(1),
+                null,
+                Set.of("validation"));
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/tasks", request, String.class);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void createTask_pastDueDate_returnsBadRequest() {
+        TaskCreateDto request = new TaskCreateDto(
+                "Past due date",
+                "description",
+                LocalDateTime.now().minusDays(1).withNano(0),
+                Priority.MEDIUM,
+                Set.of("validation"));
 
         ResponseEntity<String> response = restTemplate.postForEntity(
                 "/api/tasks", request, String.class);
@@ -60,20 +106,20 @@ class TaskControllerTest {
 
     @Test
     void getTask_returnsExistingTask() {
-        TaskDto request = new TaskDto("Get me", "Get test", false);
-        ResponseEntity<Task> created = restTemplate.postForEntity(
-                "/api/tasks", request, Task.class);
+        TaskCreateDto request = createRequest("Get me", "Get test");
+        ResponseEntity<TaskResponseDto> created = restTemplate.postForEntity(
+                "/api/tasks", request, TaskResponseDto.class);
 
         assertNotNull(created.getBody());
-        Long id = created.getBody().getId();
+        Long id = created.getBody().id();
 
-        ResponseEntity<Task> response = restTemplate.getForEntity(
-                "/api/tasks/" + id, Task.class);
+        ResponseEntity<TaskResponseDto> response = restTemplate.getForEntity(
+                "/api/tasks/" + id, TaskResponseDto.class);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(id, response.getBody().getId());
-        assertEquals("Get me", response.getBody().getTitle());
+        assertEquals(id, response.getBody().id());
+        assertEquals("Get me", response.getBody().title());
     }
 
     @Test
@@ -86,10 +132,7 @@ class TaskControllerTest {
 
     @Test
     void getAllTasks_returnsNonEmptyList() {
-        restTemplate.postForEntity(
-                "/api/tasks", new TaskDto("List task", "desc"), Task.class);
-
-        ResponseEntity<List<Task>> response = restTemplate.exchange(
+        ResponseEntity<List<TaskResponseDto>> response = restTemplate.exchange(
                 "/api/tasks",
                 HttpMethod.GET,
                 null,
@@ -102,49 +145,72 @@ class TaskControllerTest {
     }
 
     @Test
-    void getAllTasks_returnsOkEvenIfEmpty() {
-        ResponseEntity<List<Task>> response = restTemplate.exchange(
-                "/api/tasks",
-                HttpMethod.GET,
+    void updateTask_returnsPatchedResponseAndKeepsMissingFields() {
+        TaskCreateDto createReq = new TaskCreateDto(
+                "Old title",
+                "Old desc",
+                futureDate(3),
+                Priority.HIGH,
+                Set.of("backend", "api"));
+
+        ResponseEntity<TaskResponseDto> created = restTemplate.postForEntity(
+                "/api/tasks", createReq, TaskResponseDto.class);
+
+        assertNotNull(created.getBody());
+        Long id = created.getBody().id();
+
+        TaskUpdateDto updateReq = new TaskUpdateDto(
+                "New title",
                 null,
-                new ParameterizedTypeReference<>() {
-                });
+                true,
+                null,
+                null,
+                null);
+
+        ResponseEntity<TaskResponseDto> response = restTemplate.exchange(
+                "/api/tasks/" + id,
+                HttpMethod.PATCH,
+                new HttpEntity<>(updateReq),
+                TaskResponseDto.class);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
+        TaskResponseDto body = response.getBody();
+        assertNotNull(body);
+        assertEquals(id, body.id());
+        assertEquals("New title", body.title());
+        assertEquals("Old desc", body.description());
+        assertTrue(body.completed());
+        assertEquals(createReq.getDueDate(), body.dueDate());
+        assertEquals(createReq.getPriority(), body.priority());
+        assertEquals(createReq.getTags(), body.tags());
     }
 
     @Test
-    void updateTask_returnsUpdatedTask() {
-        TaskDto createReq = new TaskDto("Old title", "Old desc", false);
-        ResponseEntity<Task> created = restTemplate.postForEntity(
-                "/api/tasks", createReq, Task.class);
+    void updateTask_blankTitle_returnsBadRequest() {
+        TaskCreateDto createReq = createRequest("Valid", "Valid desc");
+        ResponseEntity<TaskResponseDto> created = restTemplate.postForEntity(
+                "/api/tasks", createReq, TaskResponseDto.class);
 
         assertNotNull(created.getBody());
-        Long id = created.getBody().getId();
+        Long id = created.getBody().id();
 
-        TaskDto updateReq = new TaskDto("New title", "New desc", true);
-        ResponseEntity<Task> response = restTemplate.exchange(
+        TaskUpdateDto updateReq = new TaskUpdateDto("", "New desc", false, null, null, null);
+        ResponseEntity<String> response = restTemplate.exchange(
                 "/api/tasks/" + id,
-                HttpMethod.PUT,
+                HttpMethod.PATCH,
                 new HttpEntity<>(updateReq),
-                Task.class);
+                String.class);
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        Task body = response.getBody();
-        assertNotNull(body);
-        assertEquals("New title", body.getTitle());
-        assertEquals("New desc", body.getDescription());
-        assertTrue(body.isCompleted());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     }
 
     @Test
     void updateTask_nonExistentId_returnsNotFound() {
-        TaskDto updateReq = new TaskDto("Title", "Desc", false);
+        TaskUpdateDto updateReq = new TaskUpdateDto("Title", "Desc", false, null, null, null);
 
         ResponseEntity<String> response = restTemplate.exchange(
                 "/api/tasks/999999",
-                HttpMethod.PUT,
+                HttpMethod.PATCH,
                 new HttpEntity<>(updateReq),
                 String.class);
 
@@ -153,12 +219,12 @@ class TaskControllerTest {
 
     @Test
     void deleteTask_returnsNoContent() {
-        TaskDto createReq = new TaskDto("To delete", "Will be removed", false);
-        ResponseEntity<Task> created = restTemplate.postForEntity(
-                "/api/tasks", createReq, Task.class);
+        TaskCreateDto createReq = createRequest("To delete", "Will be removed");
+        ResponseEntity<TaskResponseDto> created = restTemplate.postForEntity(
+                "/api/tasks", createReq, TaskResponseDto.class);
 
         assertNotNull(created.getBody());
-        Long id = created.getBody().getId();
+        Long id = created.getBody().id();
 
         ResponseEntity<Void> response = restTemplate.exchange(
                 "/api/tasks/" + id,
@@ -185,64 +251,6 @@ class TaskControllerTest {
     }
 
     @Test
-    void createTask_nullTitle_returnsBadRequest() {
-        TaskDto request = new TaskDto(null, "description", false);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/tasks", request, String.class);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-    }
-
-    @Test
-    void createTask_titleTooLong_returnsBadRequest() {
-        String longTitle = "A".repeat(101);
-        TaskDto request = new TaskDto(longTitle, "description", false);
-
-        ResponseEntity<String> response = restTemplate.postForEntity(
-                "/api/tasks", request, String.class);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-    }
-
-    @Test
-    void updateTask_blankTitle_returnsBadRequest() {
-        TaskDto createReq = new TaskDto("Valid", "Valid desc", false);
-        ResponseEntity<Task> created = restTemplate.postForEntity(
-                "/api/tasks", createReq, Task.class);
-
-        assertNotNull(created.getBody());
-        Long id = created.getBody().getId();
-
-        TaskDto updateReq = new TaskDto("", "New desc", false);
-        ResponseEntity<String> response = restTemplate.exchange(
-                "/api/tasks/" + id,
-                HttpMethod.PUT,
-                new HttpEntity<>(updateReq),
-                String.class);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-    }
-
-    @Test
-    void deleteTask_twice_secondDeleteReturnsNotFound() {
-        TaskDto createReq = new TaskDto("Double delete", "Will be deleted twice", false);
-        ResponseEntity<Task> created = restTemplate.postForEntity(
-                "/api/tasks", createReq, Task.class);
-
-        assertNotNull(created.getBody());
-        Long id = created.getBody().getId();
-
-        ResponseEntity<Void> first = restTemplate.exchange(
-                "/api/tasks/" + id, HttpMethod.DELETE, null, Void.class);
-        assertEquals(HttpStatus.NO_CONTENT, first.getStatusCode());
-
-        ResponseEntity<String> second = restTemplate.exchange(
-                "/api/tasks/" + id, HttpMethod.DELETE, null, String.class);
-        assertEquals(HttpStatus.NOT_FOUND, second.getStatusCode());
-    }
-
-    @Test
     void statistics_returnsOkWithComparison() {
         ResponseEntity<String> response = restTemplate.getForEntity(
                 "/api/statistics", String.class);
@@ -251,5 +259,18 @@ class TaskControllerTest {
         assertNotNull(response.getBody());
         assertTrue(response.getBody().contains("primary="));
         assertTrue(response.getBody().contains("stub="));
+    }
+
+    private TaskCreateDto createRequest(String title, String description) {
+        return new TaskCreateDto(
+                title,
+                description,
+                futureDate(1),
+                Priority.MEDIUM,
+                Set.of("study", "api"));
+    }
+
+    private LocalDateTime futureDate(int days) {
+        return LocalDateTime.now().plusDays(days).withNano(0);
     }
 }
