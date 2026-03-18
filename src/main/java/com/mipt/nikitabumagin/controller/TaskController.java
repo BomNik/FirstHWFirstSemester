@@ -1,9 +1,11 @@
 package com.mipt.nikitabumagin.controller;
 
-import com.mipt.nikitabumagin.dto.TaskDto;
-import com.mipt.nikitabumagin.model.Task;
+import com.mipt.nikitabumagin.dto.TaskCreateDto;
+import com.mipt.nikitabumagin.dto.TaskResponseDto;
+import com.mipt.nikitabumagin.dto.TaskUpdateDto;
 import com.mipt.nikitabumagin.service.TaskService;
-import jakarta.validation.Valid;
+import com.mipt.nikitabumagin.validation.OnCreate;
+import com.mipt.nikitabumagin.validation.OnUpdate;
 import jakarta.validation.constraints.Min;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -11,9 +13,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>{@code POST   /api/tasks}       — create a new task</li>
  *   <li>{@code GET    /api/tasks/{id}}   — retrieve a task by its identifier</li>
  *   <li>{@code GET    /api/tasks}        — list all tasks</li>
- *   <li>{@code PUT    /api/tasks/{id}}   — update an existing task</li>
+ *   <li>{@code PATCH    /api/tasks/{id}}   — update an existing task</li>
  *   <li>{@code DELETE /api/tasks/{id}}   — delete a task</li>
  * </ul>
  *
@@ -45,32 +47,29 @@ public class TaskController {
     }
 
     @PostMapping
-    public ResponseEntity<Task> createTask(@RequestBody @Valid TaskDto request) {
-        Task created = taskService.createTask(request.getTitle(),
-                request.getDescription(),
-                request.isCompleted());
+    public ResponseEntity<TaskResponseDto> createTask(
+            @RequestBody @Validated(OnCreate.class) TaskCreateDto request) {
+        TaskResponseDto created = taskService.createTask(request);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .header("Location", "/api/tasks/" + created.getId())
+                .header("Location", "/api/tasks/" + created.id())
                 .body(created);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Task> getTask(@PathVariable @Min(1) Long id) {
+    public ResponseEntity<TaskResponseDto> getTask(@PathVariable @Min(1) Long id) {
         return ResponseEntity.ok(taskService.getTaskById(id));
     }
 
     @GetMapping
-    public ResponseEntity<List<Task>> getAllTasks() {
+    public ResponseEntity<List<TaskResponseDto>> getAllTasks() {
         return ResponseEntity.ok(taskService.getAllTasks());
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Task> updateTask(@PathVariable @Min(1) Long id,
-            @RequestBody @Valid TaskDto update) {
-        return ResponseEntity.ok(
-                taskService.updateTask(id, update.getTitle(), update.getDescription(),
-                        update.isCompleted()));
+    @PatchMapping("/{id}")
+    public ResponseEntity<TaskResponseDto> updateTask(@PathVariable @Min(1) Long id,
+            @RequestBody @Validated(OnUpdate.class) TaskUpdateDto update) {
+        return ResponseEntity.ok(taskService.updateTask(id, update));
     }
 
     @DeleteMapping("/{id}")

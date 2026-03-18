@@ -1,7 +1,11 @@
 package com.mipt.nikitabumagin.service;
 
-import com.mipt.nikitabumagin.exception.InvalidTaskException;
+import com.mipt.nikitabumagin.dto.TaskCreateDto;
+import com.mipt.nikitabumagin.dto.TaskResponseDto;
+import com.mipt.nikitabumagin.dto.TaskUpdateDto;
+import com.mipt.nikitabumagin.dto.mapper.TaskMapper;
 import com.mipt.nikitabumagin.exception.TaskNotFoundException;
+import com.mipt.nikitabumagin.model.Priority;
 import com.mipt.nikitabumagin.model.Task;
 import com.mipt.nikitabumagin.repository.TaskRepository;
 import jakarta.annotation.PostConstruct;
@@ -13,9 +17,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,8 +30,8 @@ import org.springframework.stereotype.Service;
  * Core service encapsulating business logic for task management.
  *
  * <p>Delegates persistence to a {@link com.mipt.nikitabumagin.repository.TaskRepository}
- * and maintains an in-memory cache ({@link java.util.LinkedHashMap}) for fast
- * lookups by task identifier.</p>
+ * and maintains an in-memory cache ({@link java.util.LinkedHashMap}) for fast lookups by task
+ * identifier.</p>
  *
  * <p>Lifecycle hooks:
  * <ul>
@@ -42,19 +48,36 @@ public class TaskService {
 
     private static final Logger log = LoggerFactory.getLogger(TaskService.class);
     private final TaskRepository repository;
+    private final TaskMapper taskMapper;
     private Map<Long, Task> taskCache;
 
-    public TaskService(TaskRepository repository) {
+    public TaskService(TaskRepository repository, TaskMapper taskMapper) {
         this.repository = repository;
+        this.taskMapper = taskMapper;
     }
 
     @PostConstruct
     public void initCache() {
         taskCache = new LinkedHashMap<>();
         try {
-            repository.create("Welcome", "First task created on startup", false);
-            repository.create("Readme", "Check API endpoints in controller", false);
-            repository.create("Done example", "This one is already completed", true);
+            repository.create(new TaskCreateDto(
+                    "Welcome",
+                    "First task created on startup",
+                    LocalDateTime.now().plusDays(1),
+                    Priority.MEDIUM,
+                    Set.of("startup")));
+            repository.create(new TaskCreateDto(
+                    "Readme",
+                    "Check API endpoints in controller",
+                    LocalDateTime.now().plusDays(2),
+                    Priority.LOW,
+                    Set.of("docs", "api")));
+            repository.create(new TaskCreateDto(
+                    "Done example",
+                    "This one is already completed",
+                    LocalDateTime.now().plusDays(3),
+                    Priority.HIGH,
+                    Set.of("example")));
         } catch (RuntimeException e) {
             log.debug("Preload tasks skipped/failed: {}", e.getMessage());
         }
@@ -89,7 +112,8 @@ public class TaskService {
             writer.write(Instant.now() + " cacheSize=" + cacheSize);
             writer.newLine();
         } catch (IOException e) {
-            log.warn("Failed to write cache stats to {}: {}", out.toAbsolutePath(), e.getMessage());
+            log.error("Failed to write cache stats to {}: {}", out.toAbsolutePath(),
+                    e.getMessage());
         }
 
         if (taskCache != null) {
@@ -97,68 +121,43 @@ public class TaskService {
         }
     }
 
-    public Task createTask(String title, String description, Boolean completed) {
-        validateTaskFields(title, description, completed);
-        Task created = repository.create(title, description, completed);
-        if (created != null && created.getId() != null && taskCache != null) {
-            taskCache.put(created.getId(), created);
-        }
-        return created;
+    public TaskResponseDto createTask(TaskCreateDto request) {
+        Task created = repository.create(request);
+        TaskResponseDto response = taskMapper.toResponseDto(created);
+        taskCache.put(created.getId(), created);
+        log.info("Task created: {} entries", taskCache.size());
+        return response;
     }
 
-    public Task getTaskById(Long id) {
-        if (id == null) {
-            throw new TaskNotFoundException(null);
+    public TaskResponseDto getTaskById(Long id) {
+        Task cached = taskCache.get(id);
+        if (cached != null) {
+            return taskMapper.toResponseDto(cached);
         }
-        if (taskCache != null) {
-            Task cached = taskCache.get(id);
-            if (cached != null) {
-                return cached;
-            }
-        }
-        Task task = repository.findById(id)
-                .orElseThrow(() -> new TaskNotFoundException(id));
-        if (task.getId() != null && taskCache != null) {
+
+        Task task = repository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
+        if (task.getId() != null) {
             taskCache.put(task.getId(), task);
         }
-        return task;
+        return taskMapper.toResponseDto(task);
     }
 
-    public List<Task> getAllTasks() {
-        return repository.findAll();
+    public List<TaskResponseDto> getAllTasks() {
+        return repository.findAll().stream().map(taskMapper::toResponseDto).toList();
     }
 
-    public Task updateTask(Long id, String title, String description, Boolean completed) {
-        validateTaskFields(title, description, completed);
-        Task task = getTaskById(id);
-        task.setTitle(title);
-        task.setDescription(description);
-        task.setCompleted(completed);
-        Task updated = repository.update(task);
-        if (updated != null && updated.getId() != null && taskCache != null) {
-            taskCache.put(updated.getId(), updated);
-        }
-        return updated;
+    public TaskResponseDto updateTask(Long id, TaskUpdateDto request) {
+        Task updated = repository.update(id, request);
+        taskCache.put(updated.getId(), updated);
+        log.info("Task updated: {} entries", taskCache.size());
+        return taskMapper.toResponseDto(updated);
     }
 
     public void deleteTaskById(Long id) {
         if (!repository.deleteById(id)) {
             throw new TaskNotFoundException(id);
         }
-        if (taskCache != null && id != null) {
-            taskCache.remove(id);
-        }
-    }
-
-    private void validateTaskFields(String title, String description, Boolean completed) {
-        if (title == null || title.trim().isEmpty()) {
-            throw new InvalidTaskException("Title must not be empty");
-        }
-        if (description == null) {
-            throw new InvalidTaskException("Description must not be null");
-        }
-        if (completed == null) {
-            throw new InvalidTaskException("Completed must not be null");
-        }
+        log.info("Task deleted: {} entries", taskCache.size());
+        taskCache.remove(id);
     }
 }

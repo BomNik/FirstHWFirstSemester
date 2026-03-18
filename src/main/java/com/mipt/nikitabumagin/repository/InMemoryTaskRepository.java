@@ -1,5 +1,8 @@
 package com.mipt.nikitabumagin.repository;
 
+import com.mipt.nikitabumagin.dto.TaskCreateDto;
+import com.mipt.nikitabumagin.dto.TaskUpdateDto;
+import com.mipt.nikitabumagin.dto.mapper.TaskMapper;
 import com.mipt.nikitabumagin.exception.TaskNotFoundException;
 import com.mipt.nikitabumagin.model.Task;
 import java.util.ArrayList;
@@ -28,11 +31,17 @@ public class InMemoryTaskRepository implements TaskRepository {
 
     private final Map<Long, Task> storage = new ConcurrentHashMap<>();
     private final AtomicLong idSequence = new AtomicLong(0);
+    private final TaskMapper taskMapper;
+
+    InMemoryTaskRepository(TaskMapper taskMapper) {
+        this.taskMapper = taskMapper;
+    }
 
     @Override
-    public Task create(String title, String description, Boolean completed) {
+    public Task create(TaskCreateDto request) {
         Long id = idSequence.incrementAndGet();
-        Task newTask = new Task(id, title, description, completed);
+        Task newTask = taskMapper.toEntity(request);
+        newTask.setId(id);
         storage.put(id, newTask);
         return newTask;
     }
@@ -51,13 +60,16 @@ public class InMemoryTaskRepository implements TaskRepository {
     }
 
     @Override
-    public Task update(Task task) {
-        Long id = task.getId();
+    public Task update(Long id, TaskUpdateDto request) {
         if (id == null || !storage.containsKey(id)) {
             throw new TaskNotFoundException(id);
         }
-        storage.put(id, task);
-        return task;
+
+        Task taskToUpdate = storage.get(id);
+        Task updated = taskMapper.updateEntity(request, taskToUpdate);
+        storage.put(id, updated);
+
+        return updated;
     }
 
     @Override

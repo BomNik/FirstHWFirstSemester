@@ -1,5 +1,7 @@
 package com.mipt.nikitabumagin.repository;
 
+import com.mipt.nikitabumagin.dto.TaskCreateDto;
+import com.mipt.nikitabumagin.dto.TaskUpdateDto;
 import com.mipt.nikitabumagin.model.Task;
 import java.util.List;
 import java.util.Optional;
@@ -16,13 +18,13 @@ import java.util.Optional;
  */
 public interface TaskRepository {
 
-    Task create(String title, String description, Boolean completed);
+    Task create(TaskCreateDto request);
 
     Optional<Task> findById(Long id);
 
     List<Task> findAll();
 
-    Task update(Task task);
+    Task update(Long id, TaskUpdateDto request);
 
     boolean deleteById(Long id);
 }
