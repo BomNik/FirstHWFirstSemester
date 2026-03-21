@@ -4,12 +4,15 @@ import com.mipt.nikitabumagin.dto.TaskCreateDto;
 import com.mipt.nikitabumagin.dto.TaskResponseDto;
 import com.mipt.nikitabumagin.dto.TaskUpdateDto;
 import com.mipt.nikitabumagin.dto.mapper.TaskMapper;
+import com.mipt.nikitabumagin.exception.InvalidTaskException;
 import com.mipt.nikitabumagin.exception.TaskNotFoundException;
 import com.mipt.nikitabumagin.model.Priority;
 import com.mipt.nikitabumagin.model.Task;
 import com.mipt.nikitabumagin.repository.TaskRepository;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -22,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -47,13 +51,16 @@ import org.springframework.stereotype.Service;
 public class TaskService {
 
     private static final Logger log = LoggerFactory.getLogger(TaskService.class);
-    private final TaskRepository repository;
-    private final TaskMapper taskMapper;
     private Map<Long, Task> taskCache;
 
-    public TaskService(TaskRepository repository, TaskMapper taskMapper) {
+    private final TaskRepository repository;
+    private final TaskMapper taskMapper;
+    private final Validator validator;
+
+    public TaskService(TaskRepository repository, TaskMapper taskMapper, Validator validator) {
         this.repository = repository;
         this.taskMapper = taskMapper;
+        this.validator = validator;
     }
 
     @PostConstruct
@@ -122,7 +129,9 @@ public class TaskService {
     }
 
     public TaskResponseDto createTask(TaskCreateDto request) {
-        Task created = repository.create(buildNewTask(request));
+        Task task = buildNewTask(request);
+        validateTask(task);
+        Task created = repository.create(task);
         TaskResponseDto response = taskMapper.toResponseDto(created);
         taskCache.put(created.getId(), created);
         log.info("Task created: {} entries", taskCache.size());
@@ -147,9 +156,11 @@ public class TaskService {
     }
 
     public TaskResponseDto updateTask(Long id, TaskUpdateDto request) {
-        Task taskToUpdate = repository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
-        Task updated = taskMapper.updateEntity(request, taskToUpdate);
-        repository.update(updated);
+        Task currentTask = repository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
+        Task taskToUpdate = copyTask(currentTask);
+        taskMapper.updateEntity(request, taskToUpdate);
+        validateTask(taskToUpdate);
+        Task updated = repository.update(taskToUpdate);
         taskCache.put(updated.getId(), updated);
         log.info("Task updated: {} entries", taskCache.size());
         return taskMapper.toResponseDto(updated);
@@ -167,5 +178,27 @@ public class TaskService {
         Task task = taskMapper.toEntity(request);
         task.setCreatedAt(LocalDateTime.now());
         return task;
+    }
+
+    private void validateTask(Task task) {
+        Set<ConstraintViolation<Task>> violations = validator.validate(task);
+        if (!violations.isEmpty()) {
+            String message = violations.stream()
+                    .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                    .collect(Collectors.joining("; "));
+            throw new InvalidTaskException(message);
+        }
+    }
+
+    private Task copyTask(Task task) {
+        return new Task(
+                task.getId(),
+                task.getTitle(),
+                task.getDescription(),
+                task.getCompleted(),
+                task.getCreatedAt(),
+                task.getDueDate(),
+                task.getPriority(),
+                task.getTags() == null ? null : Set.copyOf(task.getTags()));
     }
 }

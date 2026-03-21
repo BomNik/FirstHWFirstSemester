@@ -13,6 +13,15 @@ public class DueDateNotBeforeCreationValidator
             return true;
         }
 
-        return !task.getDueDate().isBefore(task.getCreatedAt());
+        boolean valid = !task.getDueDate().isBefore(task.getCreatedAt());
+        if (!valid) {
+            context.disableDefaultConstraintViolation();
+            context.buildConstraintViolationWithTemplate(
+                            context.getDefaultConstraintMessageTemplate())
+                    .addPropertyNode("dueDate")
+                    .addConstraintViolation();
+        }
+
+        return valid;
     }
 }
