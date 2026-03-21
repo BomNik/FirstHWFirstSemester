@@ -1,6 +1,10 @@
 spring:
   application:
     name: todoListManager
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 server:
   port: 8080
@@ -8,3 +12,5 @@ server:
 app:
   name: Todo List Manager
   version: 1.0.0
+  attachments:
+    upload-dir: uploads

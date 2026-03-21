@@ -1,8 +1,8 @@
 package com.mipt.nikitabumagin.dto.mapper;
 
 import com.mipt.nikitabumagin.dto.TaskAttachmentCreateDto;
+import com.mipt.nikitabumagin.dto.TaskAttachmentResponseDto;
 import com.mipt.nikitabumagin.dto.TaskAttachmentUpdateDto;
-import com.mipt.nikitabumagin.dto.TaskResponseDto;
 import com.mipt.nikitabumagin.model.TaskAttachment;
 import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
@@ -22,6 +22,5 @@ public interface TaskAttachmentMapper {
     TaskAttachment updateEntity(TaskAttachmentUpdateDto dto,
             @MappingTarget TaskAttachment attachment);
 
-    TaskResponseDto toResponseDto(TaskAttachment attachment);
-
+    TaskAttachmentResponseDto toResponseDto(TaskAttachment attachment);
 }

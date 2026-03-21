@@ -1,40 +1,41 @@
 package com.mipt.nikitabumagin.repository;
 
-import com.mipt.nikitabumagin.dto.TaskAttachmentCreateDto;
-import com.mipt.nikitabumagin.dto.TaskAttachmentUpdateDto;
-import com.mipt.nikitabumagin.dto.mapper.TaskAttachmentMapper;
-import com.mipt.nikitabumagin.exception.TaskNotFoundException;
+import com.mipt.nikitabumagin.exception.AttachmentNotFoundException;
 import com.mipt.nikitabumagin.model.TaskAttachment;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Repository;
 
+/**
+ * Primary {@link TaskAttachmentRepository} implementation that stores attachment metadata in memory
+ * using a {@link java.util.concurrent.ConcurrentHashMap}.
+ *
+ * <p>Thread-safe and suitable for the MVP stage where persistent storage is not
+ * required. An {@link java.util.concurrent.atomic.AtomicLong} sequence generator ensures unique
+ * attachment identifiers.</p>
+ */
 @Primary
 @Repository
 public class InMemoryTaskAttachmentRepository implements TaskAttachmentRepository {
 
-    private final AtomicLong idSequence = new AtomicLong(0);
     private final Map<Long, TaskAttachment> storage = new ConcurrentHashMap<>();
-    private final TaskAttachmentMapper attachmentMapper;
+    private final AtomicLong idSequence = new AtomicLong(0);
 
-    InMemoryTaskAttachmentRepository(TaskAttachmentMapper attachmentMapper) {
-        this.attachmentMapper = attachmentMapper;
+    InMemoryTaskAttachmentRepository() {
     }
 
     @Override
-    public TaskAttachment create(TaskAttachmentCreateDto request) {
+    public TaskAttachment create(TaskAttachment attachment) {
+        if (attachment == null) {
+            throw new IllegalArgumentException("Attachment must not be null");
+        }
         Long id = idSequence.incrementAndGet();
-        TaskAttachment attachment = new TaskAttachment();
         attachment.setId(id);
-        attachment.setUploadedAt(LocalDateTime.now());
-        attachment.setStoredFileName(UUID.randomUUID().toString());
         storage.put(id, attachment);
         return attachment;
     }
@@ -49,20 +50,22 @@ public class InMemoryTaskAttachmentRepository implements TaskAttachmentRepositor
 
     @Override
     public List<TaskAttachment> findAllAttachmentsByTaskId(Long taskId) {
-        return new ArrayList<>(storage.values());
+        if (taskId == null) {
+            return List.of();
+        }
+        return storage.values().stream()
+                .filter(attachment -> Objects.equals(taskId, attachment.getTaskId()))
+                .toList();
     }
 
     @Override
-    public TaskAttachment update(Long id, TaskAttachmentUpdateDto request) {
-        if (id == null || !storage.containsKey(id)) {
-            throw new TaskNotFoundException(id);
+    public TaskAttachment update(TaskAttachment attachment) {
+        if (attachment == null || attachment.getId() == null
+                || !storage.containsKey(attachment.getId())) {
+            throw new AttachmentNotFoundException(attachment == null ? null : attachment.getId());
         }
-
-        TaskAttachment attachmentToUpdate = storage.get(id);
-        TaskAttachment updated = attachmentMapper.updateEntity(request, attachmentToUpdate);
-        storage.put(id, updated);
-
-        return updated;
+        storage.put(attachment.getId(), attachment);
+        return attachment;
     }
 
     @Override
