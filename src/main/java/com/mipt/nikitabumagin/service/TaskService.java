@@ -60,24 +60,24 @@ public class TaskService {
     public void initCache() {
         taskCache = new LinkedHashMap<>();
         try {
-            repository.create(new TaskCreateDto(
+            repository.create(buildNewTask(new TaskCreateDto(
                     "Welcome",
                     "First task created on startup",
                     LocalDateTime.now().plusDays(1),
                     Priority.MEDIUM,
-                    Set.of("startup")));
-            repository.create(new TaskCreateDto(
+                    Set.of("startup"))));
+            repository.create(buildNewTask(new TaskCreateDto(
                     "Readme",
                     "Check API endpoints in controller",
                     LocalDateTime.now().plusDays(2),
                     Priority.LOW,
-                    Set.of("docs", "api")));
-            repository.create(new TaskCreateDto(
+                    Set.of("docs", "api"))));
+            repository.create(buildNewTask(new TaskCreateDto(
                     "Done example",
                     "This one is already completed",
                     LocalDateTime.now().plusDays(3),
                     Priority.HIGH,
-                    Set.of("example")));
+                    Set.of("example"))));
         } catch (RuntimeException e) {
             log.debug("Preload tasks skipped/failed: {}", e.getMessage());
         }
@@ -122,7 +122,7 @@ public class TaskService {
     }
 
     public TaskResponseDto createTask(TaskCreateDto request) {
-        Task created = repository.create(request);
+        Task created = repository.create(buildNewTask(request));
         TaskResponseDto response = taskMapper.toResponseDto(created);
         taskCache.put(created.getId(), created);
         log.info("Task created: {} entries", taskCache.size());
@@ -147,7 +147,9 @@ public class TaskService {
     }
 
     public TaskResponseDto updateTask(Long id, TaskUpdateDto request) {
-        Task updated = repository.update(id, request);
+        Task taskToUpdate = repository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
+        Task updated = taskMapper.updateEntity(request, taskToUpdate);
+        repository.update(updated);
         taskCache.put(updated.getId(), updated);
         log.info("Task updated: {} entries", taskCache.size());
         return taskMapper.toResponseDto(updated);
@@ -159,5 +161,11 @@ public class TaskService {
         }
         log.info("Task deleted: {} entries", taskCache.size());
         taskCache.remove(id);
+    }
+
+    private Task buildNewTask(TaskCreateDto request) {
+        Task task = taskMapper.toEntity(request);
+        task.setCreatedAt(LocalDateTime.now());
+        return task;
     }
 }

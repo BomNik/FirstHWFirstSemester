@@ -1,8 +1,5 @@
 package com.mipt.nikitabumagin.repository;
 
-import com.mipt.nikitabumagin.dto.TaskCreateDto;
-import com.mipt.nikitabumagin.dto.TaskUpdateDto;
-import com.mipt.nikitabumagin.dto.mapper.TaskMapper;
 import com.mipt.nikitabumagin.exception.TaskNotFoundException;
 import com.mipt.nikitabumagin.model.Task;
 import java.util.ArrayList;
@@ -31,19 +28,19 @@ public class InMemoryTaskRepository implements TaskRepository {
 
     private final Map<Long, Task> storage = new ConcurrentHashMap<>();
     private final AtomicLong idSequence = new AtomicLong(0);
-    private final TaskMapper taskMapper;
 
-    InMemoryTaskRepository(TaskMapper taskMapper) {
-        this.taskMapper = taskMapper;
+    InMemoryTaskRepository() {
     }
 
     @Override
-    public Task create(TaskCreateDto request) {
+    public Task create(Task task) {
+        if (task == null) {
+            throw new IllegalArgumentException("Task must not be null");
+        }
         Long id = idSequence.incrementAndGet();
-        Task newTask = taskMapper.toEntity(request);
-        newTask.setId(id);
-        storage.put(id, newTask);
-        return newTask;
+        task.setId(id);
+        storage.put(id, task);
+        return task;
     }
 
     @Override
@@ -60,16 +57,12 @@ public class InMemoryTaskRepository implements TaskRepository {
     }
 
     @Override
-    public Task update(Long id, TaskUpdateDto request) {
-        if (id == null || !storage.containsKey(id)) {
-            throw new TaskNotFoundException(id);
+    public Task update(Task task) {
+        if (task == null || task.getId() == null || !storage.containsKey(task.getId())) {
+            throw new TaskNotFoundException(task == null ? null : task.getId());
         }
-
-        Task taskToUpdate = storage.get(id);
-        Task updated = taskMapper.updateEntity(request, taskToUpdate);
-        storage.put(id, updated);
-
-        return updated;
+        storage.put(task.getId(), task);
+        return task;
     }
 
     @Override

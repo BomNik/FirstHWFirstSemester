@@ -1,7 +1,5 @@
 package com.mipt.nikitabumagin.repository;
 
-import com.mipt.nikitabumagin.dto.TaskCreateDto;
-import com.mipt.nikitabumagin.dto.TaskUpdateDto;
 import com.mipt.nikitabumagin.model.Task;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,7 +36,7 @@ public class StubTaskRepository implements TaskRepository {
     }
 
     @Override
-    public Task create(TaskCreateDto request) {
+    public Task create(Task task) {
         throw new UnsupportedOperationException("Stub repository is read-only");
     }
 
@@ -58,7 +56,7 @@ public class StubTaskRepository implements TaskRepository {
     }
 
     @Override
-    public Task update(Long id, TaskUpdateDto request) {
+    public Task update(Task task) {
         throw new UnsupportedOperationException("Stub repository is read-only");
     }
 
