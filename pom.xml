@@ -57,6 +57,12 @@
       <artifactId>mapstruct</artifactId>
       <version>${mapstruct.version}</version>
     </dependency>
+
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>2.8.16</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -67,6 +73,7 @@
         <version>3.13.0</version>
         <configuration>
           <release>${java.version}</release>
+          <parameters>true</parameters>
           <annotationProcessorPaths>
             <path>
               <groupId>org.projectlombok</groupId>

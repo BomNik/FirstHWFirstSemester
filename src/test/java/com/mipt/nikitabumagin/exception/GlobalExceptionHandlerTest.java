@@ -151,6 +151,16 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void illegalArgumentException_returnsBadRequestErrorResponse() throws Exception {
+        mockMvc.perform(get("/test/illegal-argument"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Attachment file must not be empty"))
+                .andExpect(jsonPath("$.path").value("/test/illegal-argument"));
+    }
+
+    @Test
     void unexpectedException_returnsInternalServerErrorWithoutStackTrace() throws Exception {
         mockMvc.perform(get("/test/boom"))
                 .andExpect(status().isInternalServerError())
@@ -203,6 +213,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/boom")
         String boom() {
             throw new IllegalStateException("boom");
+        }
+
+        @GetMapping("/illegal-argument")
+        String illegalArgument() {
+            throw new IllegalArgumentException("Attachment file must not be empty");
         }
     }
 
