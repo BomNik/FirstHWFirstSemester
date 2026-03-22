@@ -44,7 +44,7 @@ public class LoggingAspect {
 
             return result;
         } catch (Throwable ex) {
-            log.warn("[SERVICE] !! {} threw {}: {}", signature, ex.getClass().getSimpleName(),
+            log.error("[SERVICE] !! {} threw {}: {}", signature, ex.getClass().getSimpleName(),
                     ex.getMessage());
             throw ex;
         }

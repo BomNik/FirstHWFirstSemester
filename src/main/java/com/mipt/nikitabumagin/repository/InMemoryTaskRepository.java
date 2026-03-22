@@ -29,12 +29,18 @@ public class InMemoryTaskRepository implements TaskRepository {
     private final Map<Long, Task> storage = new ConcurrentHashMap<>();
     private final AtomicLong idSequence = new AtomicLong(0);
 
+    InMemoryTaskRepository() {
+    }
+
     @Override
-    public Task create(String title, String description, Boolean completed) {
+    public Task create(Task task) {
+        if (task == null) {
+            throw new IllegalArgumentException("Task must not be null");
+        }
         Long id = idSequence.incrementAndGet();
-        Task newTask = new Task(id, title, description, completed);
-        storage.put(id, newTask);
-        return newTask;
+        task.setId(id);
+        storage.put(id, task);
+        return task;
     }
 
     @Override
@@ -52,11 +58,10 @@ public class InMemoryTaskRepository implements TaskRepository {
 
     @Override
     public Task update(Task task) {
-        Long id = task.getId();
-        if (id == null || !storage.containsKey(id)) {
-            throw new TaskNotFoundException(id);
+        if (task == null || task.getId() == null || !storage.containsKey(task.getId())) {
+            throw new TaskNotFoundException(task == null ? null : task.getId());
         }
-        storage.put(id, task);
+        storage.put(task.getId(), task);
         return task;
     }
 

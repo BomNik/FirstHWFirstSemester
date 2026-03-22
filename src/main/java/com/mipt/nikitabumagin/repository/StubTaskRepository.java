@@ -36,7 +36,7 @@ public class StubTaskRepository implements TaskRepository {
     }
 
     @Override
-    public Task create(String title, String description, Boolean completed) {
+    public Task create(Task task) {
         throw new UnsupportedOperationException("Stub repository is read-only");
     }
 

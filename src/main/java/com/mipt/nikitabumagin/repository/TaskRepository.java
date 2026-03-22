@@ -16,7 +16,7 @@ import java.util.Optional;
  */
 public interface TaskRepository {
 
-    Task create(String title, String description, Boolean completed);
+    Task create(Task task);
 
     Optional<Task> findById(Long id);
 
