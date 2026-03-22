@@ -60,9 +60,12 @@ public class InMemoryTaskAttachmentRepository implements TaskAttachmentRepositor
 
     @Override
     public TaskAttachment update(TaskAttachment attachment) {
-        if (attachment == null || attachment.getId() == null
+        if (attachment == null) {
+            throw new IllegalArgumentException("Attachment must not be null");
+        }
+        if (attachment.getId() == null
                 || !storage.containsKey(attachment.getId())) {
-            throw new AttachmentNotFoundException(attachment == null ? null : attachment.getId());
+            throw new AttachmentNotFoundException(attachment.getId());
         }
         storage.put(attachment.getId(), attachment);
         return attachment;
