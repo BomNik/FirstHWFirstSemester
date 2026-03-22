@@ -63,7 +63,9 @@ public class TaskController {
 
     @GetMapping
     public ResponseEntity<List<TaskResponseDto>> getAllTasks() {
-        return ResponseEntity.ok(taskService.getAllTasks());
+        List<TaskResponseDto> tasks = taskService.getAllTasks();
+        return ResponseEntity.ok().header("X-Total-Count", String.valueOf(tasks.size()))
+                .body(tasks);
     }
 
     @PatchMapping("/{id}")
