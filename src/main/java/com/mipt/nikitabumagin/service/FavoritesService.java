@@ -10,11 +10,14 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class FavoritesService {
 
+    private static final Logger log = LoggerFactory.getLogger(FavoritesService.class);
     static final String FAVORITE_TASK_IDS_ATTRIBUTE = "favoriteTaskIds";
 
     private final TaskRepository taskRepository;
@@ -55,6 +58,10 @@ public class FavoritesService {
         if (!staleIds.isEmpty()) {
             favoriteTaskIds.removeAll(staleIds);
             session.setAttribute(FAVORITE_TASK_IDS_ATTRIBUTE, favoriteTaskIds);
+            log.info("Removed stale favorite ids from session: sessionId={}, staleIds={}, favoriteTaskIds={}",
+                    session.getId(),
+                    staleIds,
+                    favoriteTaskIds);
         }
 
         return favorites;
@@ -80,11 +87,18 @@ public class FavoritesService {
                 }
             }
             session.setAttribute(FAVORITE_TASK_IDS_ATTRIBUTE, normalized);
+            log.info("Favorites attribute normalized: sessionId={}, favoriteTaskIds={}",
+                    session.getId(),
+                    normalized);
             return normalized;
         }
 
         LinkedHashSet<Long> favoriteTaskIds = new LinkedHashSet<>();
         session.setAttribute(FAVORITE_TASK_IDS_ATTRIBUTE, favoriteTaskIds);
+        log.info("Favorites session initialized: sessionId={}, attributeName={}, favoriteTaskIds={}",
+                session.getId(),
+                FAVORITE_TASK_IDS_ATTRIBUTE,
+                favoriteTaskIds);
         return favoriteTaskIds;
     }
 }

@@ -5,6 +5,8 @@ import com.mipt.nikitabumagin.service.FavoritesService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,6 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 public class FavoritesController {
 
+    private static final Logger log = LoggerFactory.getLogger(FavoritesController.class);
+
     private final FavoritesService favoritesService;
 
     public FavoritesController(FavoritesService favoritesService) {
@@ -29,6 +33,10 @@ public class FavoritesController {
     public ResponseEntity<Void> addToFavorites(@PathVariable @Min(1) Long taskId,
             HttpSession session) {
         favoritesService.addToFavorites(taskId, session);
+        log.info("Favorites updated: sessionId={}, action=add, taskId={}, favoriteTaskIds={}",
+                session.getId(),
+                taskId,
+                favoritesService.getFavoriteTaskIds(session));
         return ResponseEntity.noContent().build();
     }
 
@@ -36,11 +44,21 @@ public class FavoritesController {
     public ResponseEntity<Void> removeFromFavorites(@PathVariable @Min(1) Long taskId,
             HttpSession session) {
         favoritesService.removeFromFavorites(taskId, session);
+        log.info("Favorites updated: sessionId={}, action=remove, taskId={}, favoriteTaskIds={}",
+                session.getId(),
+                taskId,
+                favoritesService.getFavoriteTaskIds(session));
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping
     public ResponseEntity<List<TaskResponseDto>> getFavorites(HttpSession session) {
-        return ResponseEntity.ok(favoritesService.getFavoriteTasks(session));
+        List<TaskResponseDto> favorites = favoritesService.getFavoriteTasks(session);
+        log.info("Favorites requested: sessionId={}, favoriteTaskIds={}, favoriteCount={}",
+                session.getId(),
+                favoritesService.getFavoriteTaskIds(session),
+                favorites.size());
+        return ResponseEntity.ok().header("X-Total-Count", String.valueOf(favorites.size()))
+                .body(favorites);
     }
 }
