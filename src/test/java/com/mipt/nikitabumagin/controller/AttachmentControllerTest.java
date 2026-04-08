@@ -1,6 +1,11 @@
 package com.mipt.nikitabumagin.controller;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -18,13 +23,12 @@ import com.mipt.nikitabumagin.repository.TaskRepository;
 import com.mipt.nikitabumagin.service.AttachmentService;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -40,21 +44,62 @@ class AttachmentControllerTest {
     Path tempDir;
 
     private MockMvc mockMvc;
-    private TestTaskAttachmentRepository attachmentRepository;
+    private TaskAttachmentRepository attachmentRepository;
+    private Map<Long, TaskAttachment> attachmentStorage;
+    private AtomicLong attachmentSequence;
 
     @BeforeEach
     void setUp() {
-        attachmentRepository = new TestTaskAttachmentRepository();
-        TestTaskRepository taskRepository = new TestTaskRepository();
-        taskRepository.create(Task.builder()
+        attachmentStorage = new LinkedHashMap<>();
+        attachmentSequence = new AtomicLong();
+
+        attachmentRepository = mock(TaskAttachmentRepository.class);
+        TaskRepository taskRepository = mock(TaskRepository.class);
+
+        Task seedTask = Task.builder()
+                .id(1L)
                 .title("Task with attachment")
                 .description("Description")
                 .completed(false)
                 .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .dueDate(LocalDateTime.now().plusDays(1))
                 .priority(Priority.MEDIUM)
                 .tags(Set.of("files"))
-                .build());
+                .build();
+
+        when(taskRepository.findById(anyLong())).thenAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            return id.equals(seedTask.getId()) ? Optional.of(seedTask) : Optional.empty();
+        });
+
+        when(attachmentRepository.save(any(TaskAttachment.class))).thenAnswer(invocation -> {
+            TaskAttachment attachment = invocation.getArgument(0);
+            if (attachment.getId() == null) {
+                attachment.setId(attachmentSequence.incrementAndGet());
+            }
+            attachmentStorage.put(attachment.getId(), attachment);
+            return attachment;
+        });
+
+        when(attachmentRepository.findById(anyLong())).thenAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            return Optional.ofNullable(attachmentStorage.get(id));
+        });
+
+        when(attachmentRepository.findByTask_Id(anyLong())).thenAnswer(invocation -> {
+            Long taskId = invocation.getArgument(0);
+            return attachmentStorage.values().stream()
+                    .filter(attachment -> attachment.getTask() != null)
+                    .filter(attachment -> taskId.equals(attachment.getTask().getId()))
+                    .collect(Collectors.toList());
+        });
+
+        doAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            attachmentStorage.remove(id);
+            return null;
+        }).when(attachmentRepository).deleteById(anyLong());
 
         AttachmentService attachmentService = new AttachmentService(
                 attachmentRepository,
@@ -87,9 +132,9 @@ class AttachmentControllerTest {
 
     @Test
     void getAttachmentsByTaskId_returnsListOfMetadata() throws Exception {
-        attachmentRepository.create(attachment(1L, "first.txt", "stored-1", 3L));
-        attachmentRepository.create(attachment(1L, "second.txt", "stored-2", 4L));
-        attachmentRepository.create(attachment(2L, "other.txt", "stored-3", 5L));
+        attachmentRepository.save(attachment(1L, "first.txt", "stored-1", 3L));
+        attachmentRepository.save(attachment(1L, "second.txt", "stored-2", 4L));
+        attachmentRepository.save(attachment(2L, "other.txt", "stored-3", 5L));
 
         mockMvc.perform(get("/api/tasks/{taskId}/attachments", 1L))
                 .andExpect(status().isOk())
@@ -138,84 +183,12 @@ class AttachmentControllerTest {
     private TaskAttachment attachment(Long taskId, String fileName, String storedFileName,
             Long size) {
         return TaskAttachment.builder()
-                .taskId(taskId)
+                .task(Task.builder().id(taskId).build())
                 .fileName(fileName)
                 .storedFileName(storedFileName)
                 .contentType("text/plain")
                 .size(size)
                 .uploadedAt(LocalDateTime.now())
                 .build();
-    }
-
-    private static class TestTaskRepository implements TaskRepository {
-
-        private final Map<Long, Task> storage = new LinkedHashMap<>();
-        private final AtomicLong sequence = new AtomicLong();
-
-        @Override
-        public Task create(Task task) {
-            long id = sequence.incrementAndGet();
-            task.setId(id);
-            storage.put(id, task);
-            return task;
-        }
-
-        @Override
-        public Optional<Task> findById(Long id) {
-            return Optional.ofNullable(storage.get(id));
-        }
-
-        @Override
-        public List<Task> findAll() {
-            return new ArrayList<>(storage.values());
-        }
-
-        @Override
-        public Task update(Task task) {
-            storage.put(task.getId(), task);
-            return task;
-        }
-
-        @Override
-        public boolean deleteById(Long id) {
-            return storage.remove(id) != null;
-        }
-    }
-
-    private static class TestTaskAttachmentRepository implements TaskAttachmentRepository {
-
-        private final Map<Long, TaskAttachment> storage = new LinkedHashMap<>();
-        private final AtomicLong sequence = new AtomicLong();
-
-        @Override
-        public TaskAttachment create(TaskAttachment taskAttachment) {
-            long id = sequence.incrementAndGet();
-            taskAttachment.setId(id);
-            storage.put(id, taskAttachment);
-            return taskAttachment;
-        }
-
-        @Override
-        public Optional<TaskAttachment> findById(Long id) {
-            return Optional.ofNullable(storage.get(id));
-        }
-
-        @Override
-        public List<TaskAttachment> findAllAttachmentsByTaskId(Long taskId) {
-            return storage.values().stream()
-                    .filter(attachment -> attachment.getTaskId().equals(taskId))
-                    .toList();
-        }
-
-        @Override
-        public TaskAttachment update(TaskAttachment taskAttachment) {
-            storage.put(taskAttachment.getId(), taskAttachment);
-            return taskAttachment;
-        }
-
-        @Override
-        public boolean deleteById(Long id) {
-            return storage.remove(id) != null;
-        }
     }
 }

@@ -1,6 +1,10 @@
 package com.mipt.nikitabumagin.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -14,7 +18,6 @@ import com.mipt.nikitabumagin.service.TaskService;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +35,8 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 class TaskControllerValidationIntegrationTest {
 
+    private final Map<Long, Task> storage = new LinkedHashMap<>();
+    private final AtomicLong sequence = new AtomicLong();
     private MockMvc mockMvc;
     private TaskRepository taskRepository;
     private ObjectMapper objectMapper;
@@ -45,7 +50,23 @@ class TaskControllerValidationIntegrationTest {
 
         Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
         TaskMapper taskMapper = Mappers.getMapper(TaskMapper.class);
-        taskRepository = new TestTaskRepository();
+        taskRepository = mock(TaskRepository.class);
+
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
+            Task task = invocation.getArgument(0);
+            if (task.getId() == null) {
+                task.setId(sequence.incrementAndGet());
+            }
+            storage.put(task.getId(), task);
+            return task;
+        });
+
+        when(taskRepository.findById(anyLong())).thenAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            return Optional.ofNullable(storage.get(id));
+        });
+
+        when(taskRepository.findAll()).thenAnswer(invocation -> List.copyOf(storage.values()));
 
         TaskService taskService = new TaskService(taskRepository, taskMapper, validator);
         taskService.initCache();
@@ -71,7 +92,7 @@ class TaskControllerValidationIntegrationTest {
         storedTask.setDueDate(initialDueDate);
         storedTask.setPriority(Priority.MEDIUM);
         storedTask.setTags(Set.of("validation"));
-        Task created = taskRepository.create(storedTask);
+        Task created = taskRepository.save(storedTask);
 
         TaskUpdateDto invalidUpdate = new TaskUpdateDto(
                 null,
@@ -89,40 +110,5 @@ class TaskControllerValidationIntegrationTest {
         Task actual = taskRepository.findById(created.getId()).orElseThrow();
         assertEquals(initialDueDate, actual.getDueDate());
         assertEquals(createdAt, actual.getCreatedAt());
-    }
-
-    private static class TestTaskRepository implements TaskRepository {
-
-        private final Map<Long, Task> storage = new LinkedHashMap<>();
-        private final AtomicLong sequence = new AtomicLong();
-
-        @Override
-        public Task create(Task task) {
-            long id = sequence.incrementAndGet();
-            task.setId(id);
-            storage.put(id, task);
-            return task;
-        }
-
-        @Override
-        public Optional<Task> findById(Long id) {
-            return Optional.ofNullable(storage.get(id));
-        }
-
-        @Override
-        public List<Task> findAll() {
-            return new ArrayList<>(storage.values());
-        }
-
-        @Override
-        public Task update(Task task) {
-            storage.put(task.getId(), task);
-            return task;
-        }
-
-        @Override
-        public boolean deleteById(Long id) {
-            return storage.remove(id) != null;
-        }
     }
 }

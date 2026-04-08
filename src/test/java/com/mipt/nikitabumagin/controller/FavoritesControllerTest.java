@@ -1,5 +1,9 @@
 package com.mipt.nikitabumagin.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -12,9 +16,7 @@ import com.mipt.nikitabumagin.model.Task;
 import com.mipt.nikitabumagin.repository.TaskRepository;
 import com.mipt.nikitabumagin.service.FavoritesService;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -28,14 +30,31 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 class FavoritesControllerTest {
 
+    private final Map<Long, Task> storage = new LinkedHashMap<>();
+    private final AtomicLong sequence = new AtomicLong();
     private MockMvc mockMvc;
     private MockHttpSession session;
 
     @BeforeEach
     void setUp() {
-        TestTaskRepository repository = new TestTaskRepository();
-        repository.create(task("First favorite", "backend"));
-        repository.create(task("Second favorite", "frontend"));
+        TaskRepository repository = mock(TaskRepository.class);
+
+        when(repository.save(any(Task.class))).thenAnswer(invocation -> {
+            Task task = invocation.getArgument(0);
+            if (task.getId() == null) {
+                task.setId(sequence.incrementAndGet());
+            }
+            storage.put(task.getId(), task);
+            return task;
+        });
+
+        when(repository.findById(anyLong())).thenAnswer(invocation -> {
+            Long id = invocation.getArgument(0);
+            return Optional.ofNullable(storage.get(id));
+        });
+
+        repository.save(task("First favorite", "backend"));
+        repository.save(task("Second favorite", "frontend"));
 
         FavoritesService favoritesService = new FavoritesService(
                 repository,
@@ -101,44 +120,10 @@ class FavoritesControllerTest {
                 .description("Description for " + title)
                 .completed(false)
                 .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .dueDate(LocalDateTime.now().plusDays(1))
                 .priority(Priority.MEDIUM)
                 .tags(Set.of(tag))
                 .build();
-    }
-
-    private static class TestTaskRepository implements TaskRepository {
-
-        private final Map<Long, Task> storage = new LinkedHashMap<>();
-        private final AtomicLong sequence = new AtomicLong();
-
-        @Override
-        public Task create(Task task) {
-            long id = sequence.incrementAndGet();
-            task.setId(id);
-            storage.put(id, task);
-            return task;
-        }
-
-        @Override
-        public Optional<Task> findById(Long id) {
-            return Optional.ofNullable(storage.get(id));
-        }
-
-        @Override
-        public List<Task> findAll() {
-            return new ArrayList<>(storage.values());
-        }
-
-        @Override
-        public Task update(Task task) {
-            storage.put(task.getId(), task);
-            return task;
-        }
-
-        @Override
-        public boolean deleteById(Long id) {
-            return storage.remove(id) != null;
-        }
     }
 }

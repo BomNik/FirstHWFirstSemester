@@ -2,6 +2,8 @@ package com.mipt.nikitabumagin.exception;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -11,25 +13,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mipt.nikitabumagin.controller.PreferencesController;
 import com.mipt.nikitabumagin.controller.TaskController;
 import com.mipt.nikitabumagin.dto.TaskCreateDto;
-import com.mipt.nikitabumagin.dto.mapper.TaskMapper;
-import com.mipt.nikitabumagin.model.Task;
-import com.mipt.nikitabumagin.repository.TaskRepository;
 import com.mipt.nikitabumagin.service.TaskService;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mapstruct.factory.Mappers;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -58,11 +51,7 @@ class GlobalExceptionHandlerTest {
         springValidator.afterPropertiesSet();
 
         validator = Validation.buildDefaultValidatorFactory().getValidator();
-        TaskService taskService = new TaskService(
-                new TestTaskRepository(),
-                Mappers.getMapper(TaskMapper.class),
-                validator
-        );
+        TaskService taskService = mock(TaskService.class);
         globalExceptionHandler = new GlobalExceptionHandler();
 
         mockMvc = MockMvcBuilders.standaloneSetup(
@@ -104,6 +93,26 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.message").value("Validation failed"))
                 .andExpect(jsonPath("$.details.fieldErrors.title").exists())
                 .andExpect(jsonPath("$.details.fieldErrors.priority").exists())
+                .andExpect(jsonPath("$.path").value("/api/tasks"));
+    }
+
+    @Test
+    void methodArgumentNotValid_returnsDueDateFieldErrorWhenDueDateIsInPast() throws Exception {
+        TaskCreateDto request = new TaskCreateDto(
+                "Valid title",
+                "Description",
+                LocalDateTime.now().minusDays(1).withNano(0),
+                com.mipt.nikitabumagin.model.Priority.MEDIUM,
+                Set.of("validation")
+        );
+
+        mockMvc.perform(post("/api/tasks")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("Validation failed"))
+                .andExpect(jsonPath("$.details.fieldErrors.dueDate").exists())
                 .andExpect(jsonPath("$.path").value("/api/tasks"));
     }
 
@@ -172,7 +181,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void noHandlerFound_buildsUniform404ErrorResponse() throws Exception {
+    void noHandlerFound_buildsUniform404ErrorResponse() {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/does-not-exist");
         NoHandlerFoundException ex = new NoHandlerFoundException(
                 "GET",
@@ -184,9 +193,41 @@ class GlobalExceptionHandlerTest {
                 globalExceptionHandler.handleNoHandlerFound(ex, request);
 
         assertEquals(404, response.getStatusCode().value());
+        assertNotNull(response.getBody());
         assertEquals("No handler found for GET /api/does-not-exist",
                 response.getBody().message());
         assertEquals("/api/does-not-exist", response.getBody().path());
+    }
+
+    @Test
+    void invalidTask_buildsUniform400ErrorResponse() {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/tasks");
+
+        ResponseEntity<com.mipt.nikitabumagin.dto.ErrorResponse> response =
+                globalExceptionHandler.handleInvalidTask(new InvalidTaskException("Invalid payload"), request);
+
+        assertEquals(400, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals("Bad Request", response.getBody().error());
+        assertEquals("Invalid payload", response.getBody().message());
+        assertEquals("/api/tasks", response.getBody().path());
+    }
+
+    @Test
+    void attachmentNotFound_buildsUniform404ErrorResponse() {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/attachments/42");
+
+        ResponseEntity<com.mipt.nikitabumagin.dto.ErrorResponse> response =
+                globalExceptionHandler.handleAttachmentNotFound(
+                        new AttachmentNotFoundException(42L),
+                        request
+                );
+
+        assertEquals(404, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals("Not Found", response.getBody().error());
+        assertEquals("Attachment not found: id=42", response.getBody().message());
+        assertEquals("/api/attachments/42", response.getBody().path());
     }
 
     @RestController
@@ -222,40 +263,5 @@ class GlobalExceptionHandlerTest {
     }
 
     private record TestInput(@Min(1) int value) {
-    }
-
-    private static class TestTaskRepository implements TaskRepository {
-
-        private final Map<Long, Task> storage = new LinkedHashMap<>();
-        private final AtomicLong sequence = new AtomicLong();
-
-        @Override
-        public Task create(Task task) {
-            long id = sequence.incrementAndGet();
-            task.setId(id);
-            storage.put(id, task);
-            return task;
-        }
-
-        @Override
-        public Optional<Task> findById(Long id) {
-            return Optional.ofNullable(storage.get(id));
-        }
-
-        @Override
-        public List<Task> findAll() {
-            return new ArrayList<>(storage.values());
-        }
-
-        @Override
-        public Task update(Task task) {
-            storage.put(task.getId(), task);
-            return task;
-        }
-
-        @Override
-        public boolean deleteById(Long id) {
-            return storage.remove(id) != null;
-        }
     }
 }
