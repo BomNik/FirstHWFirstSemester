@@ -2,18 +2,20 @@ package com.mipt.nikitabumagin.repository;
 
 import com.mipt.nikitabumagin.model.TaskAttachment;
 import java.util.List;
-import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface TaskAttachmentRepository {
+/**
+ * Repository interface for managing TaskAttachment entities.
+ *
+ * <p>This interface extends JpaRepository, providing CRUD operations and custom query methods for
+ * TaskAttachment entities. It allows for querying attachments based on their associated task ID and
+ * file name, as well as deleting attachments by task ID.</p>
+ */
+public interface TaskAttachmentRepository extends JpaRepository<TaskAttachment, Long> {
 
-    TaskAttachment create(TaskAttachment taskAttachment);
+    List<TaskAttachment> findByTask_Id(Long taskId);
 
-    Optional<TaskAttachment> findById(Long id);
+    List<TaskAttachment> findByFileNameContainingIgnoreCase(String fileName);
 
-    List<TaskAttachment> findAllAttachmentsByTaskId(Long taskId);
-
-    TaskAttachment update(TaskAttachment taskAttachment);
-
-    boolean deleteById(Long id);
-
+    void deleteByTask_Id(Long taskId);
 }

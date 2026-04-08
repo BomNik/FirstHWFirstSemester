@@ -2,11 +2,9 @@ package com.mipt.nikitabumagin.dto;
 
 import jakarta.validation.constraints.NotBlank;
 
-public class TaskAttachmentUpdateDto {
+public record TaskAttachmentUpdateDto(
+        @NotBlank String fileName,
+        @NotBlank String contentType
+) {
 
-    @NotBlank
-    String fileName;
-
-    @NotBlank
-    String contentType;
 }

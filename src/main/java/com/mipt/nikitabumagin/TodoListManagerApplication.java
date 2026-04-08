@@ -3,6 +3,7 @@ package com.mipt.nikitabumagin;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 /**
  * Entry point for the Todo List Manager application.
@@ -14,6 +15,7 @@ import org.springframework.context.annotation.EnableAspectJAutoProxy;
  */
 @SpringBootApplication
 @EnableAspectJAutoProxy
+@EnableJpaAuditing
 public class TodoListManagerApplication {
 
     public static void main(String[] args) {

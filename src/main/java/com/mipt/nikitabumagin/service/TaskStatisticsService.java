@@ -1,5 +1,6 @@
 package com.mipt.nikitabumagin.service;
 
+import com.mipt.nikitabumagin.repository.StubTaskRepository;
 import com.mipt.nikitabumagin.repository.TaskRepository;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -17,11 +18,9 @@ import org.springframework.stereotype.Service;
 public class TaskStatisticsService {
 
     private final TaskRepository primaryRepository;
-    private final TaskRepository stubRepository;
+    private final StubTaskRepository stubRepository;
 
-    public TaskStatisticsService(
-            TaskRepository primaryRepository,
-            @Qualifier("stubTaskRepository") TaskRepository stubRepository) {
+    public TaskStatisticsService(TaskRepository primaryRepository, StubTaskRepository stubRepository) {
         this.primaryRepository = primaryRepository;
         this.stubRepository = stubRepository;
     }

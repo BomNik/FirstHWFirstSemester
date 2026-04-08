@@ -37,7 +37,7 @@ public class PreferencesController {
     private static final Logger log = LoggerFactory.getLogger(PreferencesController.class);
     private static final String VIEW_PREFERENCE_COOKIE = "viewPreference";
     private static final String DEFAULT_VIEW_MODE = "compact";
-    private static final Set<String> SUPPORTED_VIEW_MODES = Set.of("compact", "detailed");
+    private static final Set<String> SUPPORTED_VIEW_MODES = Set.of(DEFAULT_VIEW_MODE, "detailed");
 
     @Operation(
             summary = "Get view preference",

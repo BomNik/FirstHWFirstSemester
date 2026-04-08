@@ -5,6 +5,7 @@ import com.mipt.nikitabumagin.dto.TaskResponseDto;
 import com.mipt.nikitabumagin.dto.TaskUpdateDto;
 import com.mipt.nikitabumagin.dto.mapper.TaskMapper;
 import com.mipt.nikitabumagin.exception.InvalidTaskException;
+import com.mipt.nikitabumagin.exception.TaskBulkOperationException;
 import com.mipt.nikitabumagin.exception.TaskNotFoundException;
 import com.mipt.nikitabumagin.model.Priority;
 import com.mipt.nikitabumagin.model.Task;
@@ -21,6 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +31,9 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Core service encapsulating business logic for task management.
@@ -48,14 +53,14 @@ import org.springframework.stereotype.Service;
  * @see com.mipt.nikitabumagin.repository.TaskRepository
  */
 @Service
+@Transactional(readOnly = true)
 public class TaskService {
 
     private static final Logger log = LoggerFactory.getLogger(TaskService.class);
-    private Map<Long, Task> taskCache;
-
     private final TaskRepository repository;
     private final TaskMapper taskMapper;
     private final Validator validator;
+    private Map<Long, Task> taskCache;
 
     public TaskService(TaskRepository repository, TaskMapper taskMapper, Validator validator) {
         this.repository = repository;
@@ -67,19 +72,19 @@ public class TaskService {
     public void initCache() {
         taskCache = new LinkedHashMap<>();
         try {
-            repository.create(buildNewTask(new TaskCreateDto(
+            repository.save(buildNewTask(new TaskCreateDto(
                     "Welcome",
                     "First task created on startup",
                     LocalDateTime.now().plusDays(1),
                     Priority.MEDIUM,
                     Set.of("startup"))));
-            repository.create(buildNewTask(new TaskCreateDto(
+            repository.save(buildNewTask(new TaskCreateDto(
                     "Readme",
                     "Check API endpoints in controller",
                     LocalDateTime.now().plusDays(2),
                     Priority.LOW,
                     Set.of("docs", "api"))));
-            repository.create(buildNewTask(new TaskCreateDto(
+            repository.save(buildNewTask(new TaskCreateDto(
                     "Done example",
                     "This one is already completed",
                     LocalDateTime.now().plusDays(3),
@@ -128,10 +133,15 @@ public class TaskService {
         }
     }
 
+    @Transactional(
+            propagation = Propagation.REQUIRED,
+            isolation = Isolation.READ_COMMITTED,
+            rollbackFor = Exception.class
+    )
     public TaskResponseDto createTask(TaskCreateDto request) {
         Task task = buildNewTask(request);
         validateTask(task);
-        Task created = repository.create(task);
+        Task created = repository.save(task);
         TaskResponseDto response = taskMapper.toResponseDto(created);
         taskCache.put(created.getId(), created);
         log.info("Task created: {} entries", taskCache.size());
@@ -155,23 +165,76 @@ public class TaskService {
         return repository.findAll().stream().map(taskMapper::toResponseDto).toList();
     }
 
+    @Transactional(
+            propagation = Propagation.REQUIRED,
+            isolation = Isolation.READ_COMMITTED,
+            rollbackFor = Exception.class
+    )
     public TaskResponseDto updateTask(Long id, TaskUpdateDto request) {
-        Task currentTask = repository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
-        Task taskToUpdate = copyTask(currentTask);
-        taskMapper.updateEntity(request, taskToUpdate);
-        validateTask(taskToUpdate);
-        Task updated = repository.update(taskToUpdate);
+        Task existing = repository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
+
+        // Apply updates on a detached copy so invalid requests cannot leak into stored state.
+        Task candidate = cloneTask(existing);
+        taskMapper.updateEntity(request, candidate);
+        validateTask(candidate);
+
+        Task updated = repository.save(candidate);
         taskCache.put(updated.getId(), updated);
+
         log.info("Task updated: {} entries", taskCache.size());
         return taskMapper.toResponseDto(updated);
     }
 
+    @Transactional(
+            propagation = Propagation.REQUIRED,
+            isolation = Isolation.READ_COMMITTED,
+            rollbackFor = Exception.class
+    )
     public void deleteTaskById(Long id) {
-        if (!repository.deleteById(id)) {
+        if (!repository.existsById(id)) {
             throw new TaskNotFoundException(id);
         }
-        log.info("Task deleted: {} entries", taskCache.size());
+        repository.deleteById(id);
         taskCache.remove(id);
+        log.info("Task deleted: {} entries", taskCache.size());
+    }
+
+    @Transactional(
+            propagation = Propagation.REQUIRED,
+            isolation = Isolation.READ_COMMITTED,
+            rollbackFor = Exception.class
+    )
+    public void bulkCompleteTasks(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+
+        List<Task> tasks = repository.findAllById(ids);
+        Set<Long> foundIds = tasks.stream()
+                .map(Task::getId)
+                .collect(Collectors.toSet());
+
+        List<Long> missingIds = ids.stream()
+                .filter(id -> !foundIds.contains(id))
+                .toList();
+
+        if (!missingIds.isEmpty()) {
+            throw new TaskBulkOperationException("Tasks not found for ids: " + missingIds);
+        }
+
+        tasks.forEach(task -> task.setCompleted(true));
+        tasks.forEach(this::validateTask);
+
+        List<Task> updatedTasks = repository.saveAll(tasks);
+        updatedTasks.forEach(task -> taskCache.put(task.getId(), task));
+
+        log.info("Bulk completed {} tasks. Cache size: {}", updatedTasks.size(), taskCache.size());
+    }
+
+    public List<TaskResponseDto> getAllTasksWithAttachments() {
+        return repository.findAllWithAttachments().stream()
+                .map(taskMapper::toResponseDto)
+                .toList();
     }
 
     private Task buildNewTask(TaskCreateDto request) {
@@ -190,15 +253,19 @@ public class TaskService {
         }
     }
 
-    private Task copyTask(Task task) {
-        return new Task(
-                task.getId(),
-                task.getTitle(),
-                task.getDescription(),
-                task.getCompleted(),
-                task.getCreatedAt(),
-                task.getDueDate(),
-                task.getPriority(),
-                task.getTags() == null ? null : Set.copyOf(task.getTags()));
+    private Task cloneTask(Task source) {
+        Task clone = new Task();
+        clone.setId(source.getId());
+        clone.setTitle(source.getTitle());
+        clone.setDescription(source.getDescription());
+        clone.setCompleted(source.getCompleted());
+        clone.setCreatedAt(source.getCreatedAt());
+        clone.setUpdatedAt(source.getUpdatedAt());
+        clone.setDueDate(source.getDueDate());
+        clone.setPriority(source.getPriority());
+        clone.setTags(source.getTags() == null ? null : Set.copyOf(source.getTags()));
+        clone.setAttachments(source.getAttachments() == null ? new ArrayList<>() : new ArrayList<>(source.getAttachments()));
+        return clone;
     }
+
 }

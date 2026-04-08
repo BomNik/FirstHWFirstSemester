@@ -4,6 +4,7 @@ import com.mipt.nikitabumagin.dto.TaskAttachmentResponseDto;
 import com.mipt.nikitabumagin.dto.mapper.TaskAttachmentMapper;
 import com.mipt.nikitabumagin.exception.AttachmentNotFoundException;
 import com.mipt.nikitabumagin.exception.TaskNotFoundException;
+import com.mipt.nikitabumagin.model.Task;
 import com.mipt.nikitabumagin.model.TaskAttachment;
 import com.mipt.nikitabumagin.repository.TaskAttachmentRepository;
 import com.mipt.nikitabumagin.repository.TaskRepository;
@@ -22,10 +23,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
+@Transactional(readOnly = true)
 public class AttachmentService {
 
     private final TaskAttachmentRepository attachmentRepository;
@@ -52,19 +57,25 @@ public class AttachmentService {
         }
     }
 
+    @Transactional(
+            propagation = Propagation.REQUIRED,
+            isolation = Isolation.READ_COMMITTED,
+            rollbackFor = Exception.class
+    )
     public TaskAttachmentResponseDto storeAttachment(Long taskId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Attachment file must not be empty");
         }
 
-        taskRepository.findById(taskId).orElseThrow(() -> new TaskNotFoundException(taskId));
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
 
         String fileName = extractOriginalFileName(file);
         String storedFileName = UUID.randomUUID().toString();
-        Path targetPath = uploadDir.resolve(storedFileName);
+        Path targetPath = uploadDir.resolve(storedFileName).normalize();
 
         TaskAttachment attachment = TaskAttachment.builder()
-                .taskId(taskId)
+                .task(task)
                 .fileName(fileName)
                 .storedFileName(storedFileName)
                 .contentType(resolveContentType(file))
@@ -75,7 +86,7 @@ public class AttachmentService {
         try (InputStream inputStream = file.getInputStream()) {
             Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
             try {
-                TaskAttachment saved = attachmentRepository.create(attachment);
+                TaskAttachment saved = attachmentRepository.save(attachment);
                 return attachmentMapper.toResponseDto(saved);
             } catch (RuntimeException e) {
                 deleteFileQuietly(targetPath);
@@ -108,6 +119,11 @@ public class AttachmentService {
         }
     }
 
+    @Transactional(
+            propagation = Propagation.REQUIRED,
+            isolation = Isolation.READ_COMMITTED,
+            rollbackFor = Exception.class
+    )
     public void deleteAttachment(Long attachmentId) {
         TaskAttachment attachment = getAttachment(attachmentId);
         Path storedFilePath = resolveStoredFilePath(attachment);
@@ -119,15 +135,13 @@ public class AttachmentService {
                     "Failed to delete attachment file: " + attachment.getFileName(), e);
         }
 
-        if (!attachmentRepository.deleteById(attachmentId)) {
-            throw new AttachmentNotFoundException(attachmentId);
-        }
+        attachmentRepository.deleteById(attachmentId);
     }
 
     public List<TaskAttachmentResponseDto> getAttachmentsByTaskId(Long taskId) {
         taskRepository.findById(taskId).orElseThrow(() -> new TaskNotFoundException(taskId));
 
-        return attachmentRepository.findAllAttachmentsByTaskId(taskId).stream()
+        return attachmentRepository.findByTask_Id(taskId).stream()
                 .map(attachmentMapper::toResponseDto)
                 .toList();
     }
