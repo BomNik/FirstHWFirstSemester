@@ -1,28 +1,50 @@
 package com.mipt.nikitabumagin.repository;
 
+import com.mipt.nikitabumagin.model.Priority;
 import com.mipt.nikitabumagin.model.Task;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
- * Abstraction for task persistence operations.
+ * Repository interface for managing Task entities.
  *
- * <p>Defines the standard CRUD contract that all repository implementations
- * must fulfill. Concrete implementations may store data in memory, in a database, or return
- * pre-configured stub data.</p>
- *
- * @see com.mipt.nikitabumagin.repository.InMemoryTaskRepository
- * @see com.mipt.nikitabumagin.repository.StubTaskRepository
+ * <p>This interface extends JpaRepository, providing CRUD operations and custom query methods for
+ * Task entities. It allows for querying tasks based on their completion status, priority, title,
+ * and due date.</p>
  */
-public interface TaskRepository {
+public interface TaskRepository extends JpaRepository<Task, Long> {
 
-    Task create(String title, String description, Boolean completed);
+    List<Task> findByCompleted(Boolean completed);
 
-    Optional<Task> findById(Long id);
+    List<Task> findByPriority(Priority priority);
 
-    List<Task> findAll();
+    List<Task> findByCompletedAndPriority(Boolean completed, Priority priority);
 
-    Task update(Task task);
+    List<Task> findByTitleContainingIgnoreCase(String title);
 
-    boolean deleteById(Long id);
+    List<Task> findByDueDateBefore(LocalDateTime dueDate);
+
+    List<Task> findByDueDateBetween(LocalDateTime start, LocalDateTime end);
+
+    List<Task> findByCompletedFalse();
+
+    List<Task> findByCompletedTrue();
+
+    @Query("""
+            SELECT t
+            FROM Task t
+            WHERE t.dueDate IS NOT NULL
+              AND t.dueDate BETWEEN :now AND :sevenDaysLater
+            ORDER BY t.dueDate ASC
+            """)
+    List<Task> findTasksDueInNext7Days(@Param("now") LocalDateTime now,
+            @Param("sevenDaysLater") LocalDateTime sevenDaysLater);
+
+    @EntityGraph(attributePaths = "attachments")
+    @Query("SELECT t FROM Task t")
+    List<Task> findAllWithAttachments();
 }

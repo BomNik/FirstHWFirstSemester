@@ -1,11 +1,27 @@
-# Prod profile: safer defaults for production
 spring:
   config:
     activate:
       on-profile: prod
 
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
   shutdown: graceful
   error:
     include-message: never
