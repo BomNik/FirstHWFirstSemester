@@ -2,6 +2,7 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 !src/main/**/target/
 !src/test/**/target/
+.env
 
 ### STS ###
 .apt_generated
@@ -33,3 +34,12 @@ build/
 
 ### Logs ###
 task-cache-stats.txt
+
+### OS generated files ###
+.DS_Store
+
+### Tools ###
+.serena
+AGENTS.md
+homework_3.md
+qodana.yaml
