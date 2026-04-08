@@ -20,7 +20,6 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import java.time.LocalDateTime;
 import java.util.Set;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;

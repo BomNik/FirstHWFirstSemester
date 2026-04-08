@@ -130,7 +130,7 @@ class TaskRepositoryTest {
         List<Task> result = taskRepository.findByCompletedAndPriority(true, Priority.HIGH);
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getTitle()).isEqualTo("Matching");
+        assertThat(result.getFirst().getTitle()).isEqualTo("Matching");
     }
 
     @Test
@@ -166,7 +166,7 @@ class TaskRepositoryTest {
 
         assertThat(savedAttachment.getId()).isNotNull();
         assertThat(attachments).hasSize(1);
-        assertThat(attachments.get(0).getTask().getId()).isEqualTo(savedTask.getId());
-        assertThat(attachments.get(0).getFileName()).isEqualTo("report.pdf");
+        assertThat(attachments.getFirst().getTask().getId()).isEqualTo(savedTask.getId());
+        assertThat(attachments.getFirst().getFileName()).isEqualTo("report.pdf");
     }
 }

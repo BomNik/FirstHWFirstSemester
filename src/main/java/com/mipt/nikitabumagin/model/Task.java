@@ -20,9 +20,10 @@ import java.util.List;
 import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.ToString;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -38,15 +39,19 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Entity
 @Table(name = "tasks")
 @EntityListeners(AuditingEntityListener.class)
-@Data
+@Setter
+@Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @DueDateNotBeforeCreation
+@ToString(exclude = "attachments")
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Task {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
 
     @Column(name = "title", nullable = false, length = 100)
@@ -77,8 +82,6 @@ public class Task {
     @Column(name = "tags", columnDefinition = "TEXT")
     private Set<String> tags;
 
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     @OneToMany(
             mappedBy = "task",
             cascade = CascadeType.REMOVE,
@@ -87,16 +90,6 @@ public class Task {
     )
     @Builder.Default
     private List<TaskAttachment> attachments = new ArrayList<>();
-
-    public void addAttachment(TaskAttachment attachment) {
-        attachments.add(attachment);
-        attachment.setTask(this);
-    }
-
-    public void removeAttachment(TaskAttachment attachment) {
-        attachments.remove(attachment);
-        attachment.setTask(null);
-    }
 
     public void setTags(Set<String> tags) {
         this.tags = (tags == null) ? null : new java.util.HashSet<>(tags);
