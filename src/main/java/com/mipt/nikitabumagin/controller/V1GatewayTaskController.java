@@ -28,9 +28,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Internal API contract for gateway operations over tasks.
- *
- * <p>In later steps this controller will call external API via RestClient.
+ * Internal API for gateway operations over tasks.
  */
 @RestController
 @Validated

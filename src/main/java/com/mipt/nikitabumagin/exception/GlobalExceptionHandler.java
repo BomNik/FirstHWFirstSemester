@@ -70,6 +70,18 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request, Map.of());
     }
 
+    @ExceptionHandler(ExternalApiException.class)
+    public ResponseEntity<ErrorResponse> handleExternalApiException(
+            ExternalApiException ex,
+            HttpServletRequest request) {
+        return buildResponse(
+                HttpStatus.BAD_GATEWAY,
+                ex.getMessage(),
+                request,
+                Map.of("upstreamStatus", ex.getUpstreamStatus())
+        );
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(
             IllegalArgumentException ex,

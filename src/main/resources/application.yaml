@@ -20,3 +20,7 @@ app:
     jwt:
       secret: ${APP_SECURITY_JWT_SECRET:todo-list-manager-jwt-secret-key-min-32-characters}
       expiration-seconds: ${APP_SECURITY_JWT_EXPIRATION_SECONDS:3600}
+  external-api:
+    base-url: ${APP_EXTERNAL_API_BASE_URL:http://localhost:${server.port:8080}/external/v1}
+    connect-timeout-ms: ${APP_EXTERNAL_API_CONNECT_TIMEOUT_MS:1000}
+    read-timeout-ms: ${APP_EXTERNAL_API_READ_TIMEOUT_MS:2000}
