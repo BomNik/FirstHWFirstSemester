@@ -15,3 +15,8 @@ app:
   api-version: 2.0.0
   attachments:
     upload-dir: uploads
+  security:
+    pepper: ${APP_SECURITY_PEPPER:todo-list-pepper}
+    jwt:
+      secret: ${APP_SECURITY_JWT_SECRET:todo-list-manager-jwt-secret-key-min-32-characters}
+      expiration-seconds: ${APP_SECURITY_JWT_EXPIRATION_SECONDS:3600}
