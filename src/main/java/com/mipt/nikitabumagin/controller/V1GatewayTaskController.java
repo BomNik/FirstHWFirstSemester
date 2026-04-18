@@ -2,6 +2,7 @@ package com.mipt.nikitabumagin.controller;
 
 import com.mipt.nikitabumagin.dto.v1.GatewayTaskCreateRequestDto;
 import com.mipt.nikitabumagin.dto.v1.GatewayTaskResponseDto;
+import com.mipt.nikitabumagin.dto.v1.UnstableProbeResponseDto;
 import com.mipt.nikitabumagin.service.v1.GatewayTaskContractService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -106,5 +107,21 @@ public class V1GatewayTaskController {
             @PathVariable @Min(1) Long id) {
         gatewayTaskContractService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Call external unstable endpoint via gateway")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Unstable endpoint called successfully or via fallback",
+                    content = @Content(schema = @Schema(implementation = UnstableProbeResponseDto.class))
+            ),
+            @ApiResponse(responseCode = "429", description = "Gateway rate limit exceeded"),
+            @ApiResponse(responseCode = "503", description = "External API unavailable")
+    })
+    @GetMapping("/unstable")
+    public ResponseEntity<UnstableProbeResponseDto> probeUnstable(
+            @RequestParam String mode) {
+        return ResponseEntity.ok(gatewayTaskContractService.probeUnstable(mode));
     }
 }

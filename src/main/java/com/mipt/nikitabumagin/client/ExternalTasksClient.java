@@ -139,6 +139,23 @@ public class ExternalTasksClient {
         }
     }
 
+    public String callUnstable(String mode) {
+        String responseBody = restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/unstable")
+                        .queryParam("mode", mode)
+                        .build())
+                .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_HTML)
+                .retrieve()
+                .onStatus(HttpStatusCode -> HttpStatusCode.is4xxClientError(),
+                        (req, res) -> throwUnexpected4xx(res))
+                .onStatus(HttpStatusCode -> HttpStatusCode.is5xxServerError(),
+                        (req, res) -> throwExternalApiError(res))
+                .body(String.class);
+
+        return responseBody == null ? "" : responseBody;
+    }
+
     private void throwTaskNotFound(String responseBody) {
         String detail = extractProblemDetail(responseBody);
         throw new TaskNotFoundException(detail);

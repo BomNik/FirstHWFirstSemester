@@ -3,6 +3,7 @@ package com.mipt.nikitabumagin.service.v1;
 import com.mipt.nikitabumagin.client.ExternalTasksClient;
 import com.mipt.nikitabumagin.dto.v1.GatewayTaskCreateRequestDto;
 import com.mipt.nikitabumagin.dto.v1.GatewayTaskResponseDto;
+import com.mipt.nikitabumagin.dto.v1.UnstableProbeResponseDto;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
@@ -52,6 +53,13 @@ public class GatewayTaskContractService {
         externalTasksClient.deleteTask(id);
     }
 
+    @RateLimiter(name = RESILIENCE_INSTANCE)
+    @CircuitBreaker(name = RESILIENCE_INSTANCE, fallbackMethod = "probeUnstableFallback")
+    public UnstableProbeResponseDto probeUnstable(String mode) {
+        String response = externalTasksClient.callUnstable(mode);
+        return new UnstableProbeResponseDto(mode, false, response);
+    }
+
     @SuppressWarnings("unused")
     private GatewayTaskResponseDto createFallback(
             GatewayTaskCreateRequestDto request,
@@ -96,6 +104,19 @@ public class GatewayTaskContractService {
         throw new ResponseStatusException(
                 HttpStatus.SERVICE_UNAVAILABLE,
                 "External API unavailable. Delete was not performed, retry later."
+        );
+    }
+
+    @SuppressWarnings("unused")
+    private UnstableProbeResponseDto probeUnstableFallback(String mode, Throwable throwable) {
+        rethrowIfRateLimited(throwable);
+        log.warn("Fallback probeUnstable(mode={}) triggered due to external API issue: {}",
+                mode, throwable.toString());
+        return new UnstableProbeResponseDto(
+                mode,
+                true,
+                "Fallback response: external API unavailable (" + throwable.getClass().getSimpleName()
+                        + ")"
         );
     }
 
