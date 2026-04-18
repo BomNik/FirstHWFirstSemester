@@ -1,6 +1,8 @@
 package com.mipt.nikitabumagin.exception;
 
 import com.mipt.nikitabumagin.dto.ErrorResponse;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -79,6 +81,30 @@ public class GlobalExceptionHandler {
                 ex.getMessage(),
                 request,
                 Map.of("upstreamStatus", ex.getUpstreamStatus())
+        );
+    }
+
+    @ExceptionHandler(RequestNotPermitted.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitExceeded(
+            RequestNotPermitted ex,
+            HttpServletRequest request) {
+        return buildResponse(
+                HttpStatus.TOO_MANY_REQUESTS,
+                "Rate limit exceeded for external API requests",
+                request,
+                Map.of("resilience", "rateLimiter")
+        );
+    }
+
+    @ExceptionHandler(CallNotPermittedException.class)
+    public ResponseEntity<ErrorResponse> handleCircuitBreakerOpen(
+            CallNotPermittedException ex,
+            HttpServletRequest request) {
+        return buildResponse(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "External API is temporarily unavailable (circuit breaker open)",
+                request,
+                Map.of("resilience", "circuitBreaker")
         );
     }
 
