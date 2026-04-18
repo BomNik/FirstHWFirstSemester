@@ -22,6 +22,6 @@ class TodoListManagerApplicationTests {
     @Test
     void customPropertiesAreInjected() {
         assertEquals("Todo List Manager", appInfoService.getAppName());
-        assertEquals("1.0.0", appInfoService.getAppVersion());
+        assertEquals("3.0.0", appInfoService.getAppVersion());
     }
 }

@@ -1,6 +1,33 @@
 package com.mipt.nikitabumagin.model;
 
-import java.util.Objects;
+import com.mipt.nikitabumagin.validation.DueDateNotBeforeCreation;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 /**
  * Domain model representing a single task in the task management system.
@@ -9,79 +36,62 @@ import java.util.Objects;
  * {@code description}, and a {@code completed} flag indicating whether the task has been
  * finished.</p>
  */
+@Entity
+@Table(name = "tasks")
+@EntityListeners(AuditingEntityListener.class)
+@Setter
+@Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@DueDateNotBeforeCreation
+@ToString(exclude = "attachments")
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Task {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
+
+    @Column(name = "title", nullable = false, length = 100)
     private String title;
+
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+    @Column(name = "completed", nullable = false)
     private Boolean completed;
 
-    public Task(Long id, String title, String description, Boolean completed) {
-        this.id = id;
-        this.title = title;
-        this.description = description;
-        this.completed = completed;
-    }
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
-    public Long getId() {
-        return id;
-    }
+    @LastModifiedDate
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    @Column(name = "due_date")
+    private LocalDateTime dueDate;
 
-    public String getTitle() {
-        return title;
-    }
+    @Enumerated(EnumType.STRING)
+    @Column(name = "priority", nullable = false, length = 16)
+    private Priority priority;
 
-    public void setTitle(String title) {
-        this.title = title;
-    }
+    @Convert(converter = StringSetConverter.class)
+    @Column(name = "tags", columnDefinition = "TEXT")
+    private Set<String> tags;
 
-    public String getDescription() {
-        return description;
-    }
+    @OneToMany(
+            mappedBy = "task",
+            cascade = CascadeType.REMOVE,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @Builder.Default
+    private List<TaskAttachment> attachments = new ArrayList<>();
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public Boolean isCompleted() {
-        return completed;
-    }
-
-    public void setCompleted(Boolean completed) {
-        this.completed = completed;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        Task task = (Task) o;
-        return Objects.equals(id, task.id)
-                && Objects.equals(completed, task.completed)
-                && Objects.equals(title, task.title)
-                && Objects.equals(description, task.description);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(id, title, description, completed);
-    }
-
-    @Override
-    public String toString() {
-        return "Task{" +
-                "id=" + id +
-                ", title='" + title + '\'' +
-                ", description='" + description + '\'' +
-                ", completed=" + completed +
-                '}';
+    public void setTags(Set<String> tags) {
+        this.tags = (tags == null) ? null : new java.util.HashSet<>(tags);
     }
 }

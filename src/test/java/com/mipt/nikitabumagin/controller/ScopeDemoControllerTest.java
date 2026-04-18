@@ -1,4 +1,4 @@
-package com.mipt.nikitabumagin;
+package com.mipt.nikitabumagin.controller;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
