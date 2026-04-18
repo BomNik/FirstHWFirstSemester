@@ -19,3 +19,7 @@ spring:
 app:
   attachments:
     upload-dir: build/test-uploads
+  external-api:
+    base-url: http://localhost:8080/external/v1
+    connect-timeout-ms: 100
+    read-timeout-ms: 200
