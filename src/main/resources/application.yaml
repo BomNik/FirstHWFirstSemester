@@ -24,3 +24,12 @@ app:
     base-url: ${APP_EXTERNAL_API_BASE_URL:http://localhost:${server.port:8080}/external/v1}
     connect-timeout-ms: ${APP_EXTERNAL_API_CONNECT_TIMEOUT_MS:1000}
     read-timeout-ms: ${APP_EXTERNAL_API_READ_TIMEOUT_MS:2000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      show-details: always
