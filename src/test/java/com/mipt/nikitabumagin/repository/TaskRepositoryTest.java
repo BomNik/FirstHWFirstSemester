@@ -27,7 +27,7 @@ class TaskRepositoryTest {
     @Test
     @DisplayName("findTasksDueInNext7Days должен возвращать только задачи с dueDate в ближайшие 7 дней")
     void findTasksDueInNext7Days_shouldReturnOnlyTasksInRange() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now().withNano(0);
 
         Task taskInRange1 = Task.builder()
                 .title("Task 1")
@@ -90,7 +90,7 @@ class TaskRepositoryTest {
     @Test
     @DisplayName("findByCompletedAndPriority должен корректно фильтровать задачи")
     void findByCompletedAndPriority_shouldFilterCorrectly() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now().withNano(0);
 
         Task matchingTask = Task.builder()
                 .title("Matching")
@@ -136,7 +136,7 @@ class TaskRepositoryTest {
     @Test
     @DisplayName("должно сохраняться отношение задача-вложение")
     void shouldSaveTaskWithAttachmentRelationship() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now().withNano(0);
 
         Task task = Task.builder()
                 .title("Task with attachment")
