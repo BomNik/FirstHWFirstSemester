@@ -1,10 +1,54 @@
 spring:
   application:
     name: todoListManager
-
-server:
-  port: 8080
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  web:
+    resources:
+      add-mappings: false
 
 app:
   name: Todo List Manager
-  version: 1.0.0
+  version: 3.0.0
+  api-version: 2.0.0
+  attachments:
+    upload-dir: uploads
+  security:
+    pepper: ${APP_SECURITY_PEPPER:todo-list-pepper}
+    jwt:
+      secret: ${APP_SECURITY_JWT_SECRET:todo-list-manager-jwt-secret-key-min-32-characters}
+      expiration-seconds: ${APP_SECURITY_JWT_EXPIRATION_SECONDS:3600}
+  external-api:
+    base-url: ${APP_EXTERNAL_API_BASE_URL:http://localhost:${server.port:8080}/external/v1}
+    connect-timeout-ms: ${APP_EXTERNAL_API_CONNECT_TIMEOUT_MS:1000}
+    read-timeout-ms: ${APP_EXTERNAL_API_READ_TIMEOUT_MS:2000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      show-details: always
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      externalApi:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        waitDurationInOpenState: 15s
+        failureRateThreshold: 50
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+  ratelimiter:
+    instances:
+      externalApi:
+        limitForPeriod: 5
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
